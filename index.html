@@ -121,7 +121,9 @@
     display:flex; align-items:center; justify-content:center; box-shadow:inset 0 -5px 0 rgba(0,0,0,.18), 0 2px 4px rgba(0,0,0,.2);
   }
   .block svg { width:26px; height:26px; }
-  .bowl { position:absolute; bottom:10%; right:6%; font-size:52px; filter:drop-shadow(0 3px 2px rgba(0,0,0,.25)); }
+  .bowl { position:absolute; bottom:9%; right:5%; width:98px; z-index:5; }
+  .bowl svg { width:100%; display:block; filter:drop-shadow(0 3px 2px rgba(0,0,0,.25)); }
+  #bowlFood { transition:opacity .35s ease; }
   .butterfly { position:absolute; font-size:30px; display:none; transition:left 2.4s ease-in-out, top 2.4s ease-in-out; }
   #scene.outdoor .butterfly { display:block; }
 
@@ -319,7 +321,15 @@
     <div class="sun">☀️</div>
     <div class="tree">🌳</div>
     <div class="blocks" id="blocksRow"></div>
-    <div class="bowl">🥣</div>
+    <div class="bowl" id="bowl"><svg viewBox="0 0 100 60">
+      <g id="bowlFood" style="opacity:0;">
+        <ellipse cx="50" cy="21" rx="33" ry="9.5" fill="#b07a45"/>
+        <circle cx="36" cy="17" r="4.5" fill="#8a5a2b"/><circle cx="50" cy="14" r="4.5" fill="#8a5a2b"/><circle cx="64" cy="17" r="4.5" fill="#8a5a2b"/><circle cx="43" cy="20" r="4" fill="#9c6527"/><circle cx="58" cy="20" r="4" fill="#9c6527"/>
+      </g>
+      <path d="M8 24 L92 24 L84 50 Q82 56 74 56 L26 56 Q18 56 16 50 Z" fill="#e63950"/>
+      <ellipse cx="50" cy="24" rx="42" ry="7" fill="#c22a40"/>
+      <ellipse cx="50" cy="22.5" rx="37" ry="5" fill="#ffffff" opacity=".22"/>
+    </svg></div>
     <div class="butterfly" id="bfly">🦋</div>
     <div id="bubble"></div>
     <div id="ball">⚽</div>
@@ -361,8 +371,30 @@
         <input class="textin" id="focusCustom" placeholder="Type it here" style="display:none; width:170px;">
       </div>
       <div class="focusbtns" id="focusBtns"></div>
+      <div class="rowflex" id="wordAddRow" style="display:none; margin-top:4px;">
+        <input class="textin" id="newWordInput" placeholder="Add your own sight word" style="width:220px;">
+        <button class="bigbtn green small" id="addWordBtn">＋ Add Word</button>
+        <span id="customWordsList" style="font-size:14px; color:#8a6d4f;"></span>
+      </div>
       <p class="note">This shows up in every pet's room — on the wall poster, on the toy blocks, in the pet's speech bubble,
       and in the Feed game, where the pet asks for the matching treat.</p>
+    </div>
+
+    <div class="panel">
+      <h3>📝 Add the Class List</h3>
+      <p class="note" style="margin:0 0 8px;">Type or paste student names — one per line, or separated by commas. Each student gets an egg to hatch when they create their pet.</p>
+      <textarea id="bulkNames" rows="5" placeholder="Emma&#10;Liam&#10;Ava&#10;…" style="width:100%; font-family:inherit; font-size:16px; padding:10px; border:2px solid #ffd9ae; border-radius:11px; color:#4a3728;"></textarea>
+      <div class="rowflex" style="margin-top:8px;">
+        <button class="bigbtn green small" id="bulkAddBtn">＋ Add These Students</button>
+        <span id="bulkMsg" style="font-weight:bold; color:#4e9a51;"></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>🔗 Student Links</h3>
+      <p class="note" style="margin:0 0 8px;">Each student gets their own link — it opens <b>only their pet</b> (or their egg, to create it). Add it to their iPad as a home-screen shortcut and they'll never see another student's pet. The app address below is where this app lives online; it's filled in for you on the hosted page.</p>
+      <div class="rowflex"><span style="font-weight:bold;">App address:</span><input class="textin" id="appBaseInput" style="flex:1; min-width:240px;"></div>
+      <div id="linksList" style="margin-top:10px;"></div>
     </div>
 
     <div class="panel">
@@ -584,7 +616,7 @@ function demoState(){
   const mk = (name, pet) => ({ id: uid(), name, pet: pet || null,
     hunger: 70, happiness: 75, stars: 0 });
   return {
-    settings: { focusType:"letter", focus:"B", visit:null },
+    settings: { focusType:"letter", focus:"B", visit:null, customWords:[], appBase:"" },
     students: [
       mk("Emma",  { type:"cat",   color:"#f4a259", name:"Whiskers" }),
       mk("Liam",  { type:"dog",   color:"#b08968", name:"Biscuit" }),
@@ -599,13 +631,18 @@ async function loadState(){
   if(CONNECTED){
     try{
       const data = await gasGet();
-      if(data && data.students){ S = data; setSync("☁️ Connected to your Google Sheet"); return; }
+      if(data && data.students){ S = data; setSync("☁️ Connected to your Google Sheet"); }
     }catch(e){ /* fall through to local */ }
-    setSync("⚠️ Sheet not reachable — using this device only");
+    if(!S) setSync("⚠️ Sheet not reachable — using this device only");
   }
-  try{ S = JSON.parse(localStorage.getItem(LS_KEY)) || demoState(); }
-  catch(e){ S = demoState(); }
-  if(!CONNECTED) setSync("Demo mode — saved on this iPad only");
+  if(!S){
+    try{ S = JSON.parse(localStorage.getItem(LS_KEY)) || demoState(); }
+    catch(e){ S = demoState(); }
+    if(!CONNECTED) setSync("Demo mode — saved on this iPad only");
+  }
+  if(!S.settings) S.settings = demoState().settings;
+  if(!Array.isArray(S.settings.customWords)) S.settings.customWords = [];
+  if(typeof S.settings.appBase !== "string") S.settings.appBase = "";
 }
 let saveTimer = null;
 function saveState(){
@@ -748,7 +785,7 @@ function distractors(){
   if(t === "number"){ const n = parseInt(v,10); return pick(["1","2","3","4","5","6","7","8","9","10"]).slice(0,2); }
   if(t === "shape") return pick(SHAPES);
   if(t === "color") return pick(Object.keys(COLOR_WORDS));
-  if(t === "word") return pick(SIGHT_WORDS);
+  if(t === "word") return pick(SIGHT_WORDS.concat(S.settings.customWords || []));
   return [];
 }
 
@@ -757,7 +794,8 @@ function distractors(){
    ===================================================================== */
 let cur = null;          // current student object
 let P = null;            // pet actor runtime state
-let rafId = null, decayTimer = null, idleTimer = null, pollTimer = null;
+let lastInteract = Date.now(); // last time the student touched something
+let rafId = null, decayTimer = null, idleTimer = null, pollTimer = null, visitTimer = null;
 
 function makeActor(el, pet, name, guest){
   el.className = "petactor" + (guest ? " guest" : "");
@@ -792,8 +830,9 @@ function openPetRoom(studentId){
   P = makeActor($("#petActor"), cur.pet, cur.pet.name, false);
   P.x = 30 + Math.random()*40; P.tx = P.x;
   placeActor(P);
-  $("#ball").style.display = "none"; ballOn = false;
+  $("#ball").style.display = "none"; ballOn = false; vBall.on = false;
   $("#treats").style.display = "none";
+  setBowl(false); lastInteract = Date.now();
   hideBubble();
   renderFocusInRoom(); updateMeters(); checkVisit(true);
   show("pet");
@@ -849,8 +888,8 @@ function startPetLoop(){
   const loop = now => {
     const dt = Math.min(0.05, (now - last)/1000); last = now;
     if(P) stepActor(P, dt);
-    if(G){ // guest follows the host pet loosely
-      G.tx = clamp(P.x - 20 * P.facing, 8, 92); G.ty = P.y;
+    if(G){ // in 'follow' mode the guest trails the host pet; other modes set their own targets
+      if(vPlay.mode === "follow"){ G.tx = clamp(P.x - 20 * P.facing, 8, 92); G.ty = P.y; }
       stepActor(G, dt);
     }
     rafId = requestAnimationFrame(loop);
@@ -863,12 +902,13 @@ function startPetLoop(){
     updateMeters(); saveState();
   }, 25000);
   idleTimer = setInterval(idleBehavior, 9000);
+  visitTimer = setInterval(visitPlay, 1500);
   if(CONNECTED) pollTimer = setInterval(pollSettings, 10000);
 }
 function stopPetLoop(){
   if(rafId) cancelAnimationFrame(rafId);
-  [decayTimer, idleTimer, pollTimer].forEach(t => t && clearInterval(t));
-  rafId = decayTimer = idleTimer = pollTimer = null;
+  [decayTimer, idleTimer, pollTimer, visitTimer].forEach(t => t && clearInterval(t));
+  rafId = decayTimer = idleTimer = pollTimer = visitTimer = null;
 }
 function idleBehavior(){
   if(!P || P.mode !== "idle" || $("#treats").style.display === "flex") return;
@@ -917,7 +957,7 @@ function overPet(e, actor){
 function initSceneTouch(){
   const sc = $("#scene");
   sc.addEventListener("pointerdown", e => {
-    audio();
+    audio(); lastInteract = Date.now();
     if(e.target.closest("#treats") || e.target.closest("#bubble")) return;
     if(P.mode === "nap") return;
     const onPet = overPet(e, P);
@@ -960,12 +1000,13 @@ function initSceneTouch(){
 
 /* ---------- feeding = the learning game ---------- */
 let feeding = false;
+function setBowl(full){ const f = $("#bowlFood"); if(f) f.style.opacity = full ? "1" : "0"; }
 function startFeed(){
   if(!cur || P.mode === "nap") return;
+  lastInteract = Date.now();
   hideBall();
   const t = S.settings.focusType;
   const f = focusDisplay();
-  P.tx = 74; P.ty = 90; P.facing = 1;
   const box = $("#treats"); box.innerHTML = "";
   let options;
   if(t === "custom"){
@@ -1003,25 +1044,42 @@ function feedChoice(btn, ok){
   }
   feeding = false;
   $("#treats").style.display = "none";
-  P.el.classList.add("eating");
-  SFX.munch();
-  setTimeout(()=>{ P.el.classList.remove("eating");
-    cur.hunger = clamp(cur.hunger + 32, 0, 100);
-    cur.stars += 1; petHappy(6); updateMeters(); saveState();
-    SFX.sparkle(); hearts(2); bouncePet();
-    const f = focusDisplay();
-    showBubble(`Yum! ⭐<br>${esc(f.phrase)}`, 2800);
-  }, 1250);
+  // The chosen treat goes in the bowl — then the pet walks over and eats it.
+  setBowl(true); SFX.pop();
+  showBubble("Yum, that's the one!<br>Watch me eat! 🥣", 1800);
+  P.tx = 79; P.ty = 93; P.facing = 1;
+  let ate = false;
+  const eatNow = ()=>{
+    if(ate) return; ate = true;
+    P.el.classList.add("eating");
+    SFX.munch();
+    setTimeout(()=> SFX.munch(), 500);
+    setTimeout(()=>{
+      P.el.classList.remove("eating");
+      setBowl(false);
+      cur.hunger = clamp(cur.hunger + 32, 0, 100);
+      cur.stars += 1; petHappy(6); updateMeters(); saveState();
+      SFX.sparkle(); hearts(2); bouncePet();
+      const f = focusDisplay();
+      showBubble(`All gone! ⭐<br>${esc(f.phrase)}`, 2800);
+    }, 1500);
+  };
+  const watcher = setInterval(()=>{
+    if(Math.abs(P.x - 79) < 4 && Math.abs(P.y - 93) < 3.5){ clearInterval(watcher); eatNow(); }
+  }, 120);
+  setTimeout(()=>{ clearInterval(watcher); eatNow(); }, 2600);
 }
 
 /* ---------- play with the ball ---------- */
 let ballOn = false;
 function togglePlay(){
   if(P.mode === "nap") return;
+  lastInteract = Date.now();
+  vBall.on = false; // the student's own game takes over from visit play
   if(ballOn){ hideBall(); return; }
   $("#treats").style.display = "none"; feeding = false;
   ballOn = true;
-  const b = $("#ball"); b.style.display = "block";
+  const b = $("#ball"); b.textContent = "⚽"; b.style.display = "block";
   moveBall(20 + Math.random()*55, 90);
   showBubble("⚽ Throw the ball!<br>Tap where it should go!", 2600);
   SFX.boing();
@@ -1039,6 +1097,7 @@ function hideBall(){ ballOn = false; $("#ball").style.display = "none"; }
 
 /* ---------- outside / nap ---------- */
 function toggleOutside(){
+  lastInteract = Date.now();
   const sc = $("#scene");
   const goingOut = sc.className !== "outdoor";
   sc.className = goingOut ? "outdoor" : "indoor";
@@ -1051,6 +1110,7 @@ function toggleOutside(){
 }
 function napTime(){
   if(P.mode === "nap") return;
+  lastInteract = Date.now();
   hideBall(); $("#treats").style.display = "none"; feeding = false;
   P.mode = "nap"; P.el.classList.add("sleepy");
   showBubble("😴 Nap time…", 2000); SFX.snore();
@@ -1065,6 +1125,53 @@ function napTime(){
 
 /* ---------- visits (a friend's pet comes to play) ---------- */
 let G = null; // guest actor
+let vPlay = { mode: "follow" };
+let vBall = { on: false, x: 50, y: 93, chaser: "guest" };
+// While a friend is visiting, the two pets play on their own:
+// they chase a ball together, chase each other, and bounce around.
+function visitPlay(){
+  if(!G || !P || currentView !== "pet" || P.mode === "nap" || feeding) return;
+  const hostIdle = Date.now() - lastInteract > 5000;
+  const dist = Math.hypot(P.x - G.x, P.y - G.y);
+
+  if(vBall.on){
+    const chaser = vBall.chaser === "guest" ? G : P;
+    const other  = vBall.chaser === "guest" ? P : G;
+    if(vBall.chaser === "host" && !hostIdle){ /* student is driving the host pet — let them */ }
+    else { chaser.tx = vBall.x; chaser.ty = vBall.y; }
+    other.tx = clamp(vBall.x + (vBall.chaser === "guest" ? 17 : -17), 8, 92); other.ty = 92;
+    if(Math.hypot(chaser.x - vBall.x, chaser.y - vBall.y) < 5){
+      bouncePet(vBall.chaser === "guest"); SFX.pop(); hearts(1, vBall.chaser === "guest");
+      if(Math.random() < 0.4){
+        vBall.on = false; if(!ballOn) $("#ball").style.display = "none"; vPlay.mode = "follow";
+      } else {
+        vBall.x = 12 + Math.random()*76; vBall.y = 93;
+        const b = $("#ball"); b.style.left = vBall.x + "%"; b.style.top = vBall.y + "%";
+        vBall.chaser = vBall.chaser === "guest" ? "host" : "guest";
+      }
+    }
+    return;
+  }
+
+  const r = Math.random();
+  if(r < 0.38){ // a ball appears — they take turns chasing it
+    vBall.on = true; vBall.x = 15 + Math.random()*70; vBall.y = 93;
+    vBall.chaser = Math.random() < .5 ? "guest" : "host";
+    const b = $("#ball"); b.textContent = "🎾"; b.style.display = "block";
+    b.style.left = vBall.x + "%"; b.style.top = vBall.y + "%";
+    vPlay.mode = "ball"; SFX.boing();
+  } else if(r < 0.62){ // chase each other
+    vPlay.mode = "chase";
+    G.tx = P.x; G.ty = P.y;
+    if(hostIdle){ P.tx = clamp(G.x + (Math.random() < .5 ? -18 : 18), 8, 92); P.ty = G.y; }
+  } else if(r < 0.78 && dist < 26){ // play-bounce together
+    vPlay.mode = "follow";
+    bouncePet(); bouncePet(true); SFX.chirp(); hearts(1); hearts(1, true);
+  } else { // wander off somewhere new
+    vPlay.mode = "follow";
+    G.tx = 12 + Math.random()*76; G.ty = 88 + Math.random()*8;
+  }
+}
 function checkVisit(first){
   const v = S.settings.visit;
   const ga = $("#guestActor");
@@ -1082,7 +1189,8 @@ function checkVisit(first){
       return;
     }
   }
-  if(G){ G = null; ga.innerHTML = ""; ga.className = ""; banner.style.display = "none"; }
+  if(G){ G = null; ga.innerHTML = ""; ga.className = ""; banner.style.display = "none";
+    vBall.on = false; vPlay.mode = "follow"; if(!ballOn) $("#ball").style.display = "none"; }
 }
 async function pollSettings(){
   try{
@@ -1100,13 +1208,62 @@ async function pollSettings(){
    TEACHER DASHBOARD
    ===================================================================== */
 function renderTeacher(){
-  renderFocusControls(); renderRoster(); renderPlayControls();
+  renderFocusControls(); renderRoster(); renderPlayControls(); renderLinks();
+}
+function appBase(){
+  if(S.settings.appBase) return S.settings.appBase.replace(/[?#].*$/, "");
+  return location.href.split(/[?#]/)[0];
+}
+function buildLink(extra){
+  const base = appBase();
+  const sep = base.includes("?") ? "&" : "?";
+  const gas = CONNECTED && !base.includes("gas=") ? `gas=${encodeURIComponent(GAS_URL)}&` : "";
+  return `${base}${sep}${gas}${extra}`;
+}
+function renderLinks(){
+  const inp = $("#appBaseInput"); if(!inp) return;
+  inp.value = appBase();
+  const box = $("#linksList"); box.innerHTML = "";
+  const mkRow = (label, link, bold) => {
+    const row = document.createElement("div");
+    row.className = "rowflex"; row.style.marginBottom = "7px";
+    row.innerHTML = `<span style="min-width:110px; ${bold ? "font-weight:bold;" : ""}">${esc(label)}</span>
+      <input class="textin" readonly value="${esc(link)}" style="flex:1; min-width:220px; font-size:13px;">
+      <button class="bigbtn blue small">Copy</button>`;
+    row.querySelector("button").addEventListener("click", ev => {
+      const field = row.querySelector("input");
+      const done = ()=>{ ev.target.textContent = "Copied! ✓"; setTimeout(()=> ev.target.textContent = "Copy", 1600); };
+      if(navigator.clipboard && navigator.clipboard.writeText)
+        navigator.clipboard.writeText(field.value).then(done).catch(()=>{ field.select(); document.execCommand("copy"); done(); });
+      else { field.select(); document.execCommand("copy"); done(); }
+    });
+    box.appendChild(row);
+  };
+  mkRow("🍎 Teacher", buildLink("view=teacher"), true);
+  S.students.forEach(st => mkRow(st.name, buildLink("student=" + st.id), false));
+}
+function bulkAddStudents(){
+  const raw = $("#bulkNames").value || "";
+  const names = raw.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
+  const existing = new Set(S.students.map(s => s.name.toLowerCase()));
+  let added = 0;
+  names.forEach(nm => {
+    if(existing.has(nm.toLowerCase())) return;
+    existing.add(nm.toLowerCase());
+    S.students.push({ id: uid(), name: nm, pet: null, hunger: 75, happiness: 80, stars: 0 });
+    added++;
+  });
+  $("#bulkNames").value = "";
+  $("#bulkMsg").textContent = added ? `Added ${added} student${added === 1 ? "" : "s"}! ✓` : "No new names (duplicates skipped).";
+  saveState(); renderTeacher(); renderHome();
 }
 function renderFocusControls(){
   const t = S.settings.focusType;
   $("#focusType").value = t;
   $("#focusCustom").style.display = t === "custom" ? "" : "none";
   if(t === "custom") $("#focusCustom").value = S.settings.focus;
+  $("#wordAddRow").style.display = t === "word" ? "" : "none";
+  renderCustomWordsList();
   const box = $("#focusBtns"); box.innerHTML = "";
   const mkBtn = (label, val, html) => {
     const b = document.createElement("button");
@@ -1120,7 +1277,30 @@ function renderFocusControls(){
   else if(t === "shape") SHAPES.forEach(shp => mkBtn(shp, shp, shapeSVG(shp, "#e07a3f") + " " + shp));
   else if(t === "color") Object.keys(COLOR_WORDS).forEach(cn =>
     mkBtn(cn, cn, `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${COLOR_WORDS[cn]};vertical-align:-4px;"></span> ${cn}`));
-  else if(t === "word") SIGHT_WORDS.forEach(w => mkBtn(w, w));
+  else if(t === "word") SIGHT_WORDS.concat(S.settings.customWords || []).forEach(w => mkBtn(w, w));
+}
+function renderCustomWordsList(){
+  const el = $("#customWordsList"); if(!el) return;
+  const words = S.settings.customWords || [];
+  if(!words.length){ el.textContent = ""; return; }
+  el.innerHTML = "Your words: " + words.map((w,i) =>
+    `<span style="background:#fff3e2;border:2px solid #ffd9ae;border-radius:999px;padding:2px 6px 2px 10px;margin-right:5px;font-weight:bold;">${esc(w)} <button data-wdel="${i}" title="Remove" style="background:none;color:#b03a2e;font-weight:bold;font-size:14px;">✕</button></span>`).join("");
+  el.querySelectorAll("[data-wdel]").forEach(b => b.addEventListener("click", ()=>{
+    const removed = S.settings.customWords.splice(Number(b.dataset.wdel), 1)[0];
+    if(S.settings.focus === removed) S.settings.focus = "the";
+    saveState(); renderFocusControls();
+  }));
+}
+function addCustomWord(){
+  const inp = $("#newWordInput");
+  const w = inp.value.trim().toLowerCase(); if(!w) return;
+  S.settings.customWords = S.settings.customWords || [];
+  if(!SIGHT_WORDS.includes(w) && !S.settings.customWords.includes(w)){
+    S.settings.customWords.push(w);
+    S.settings.focus = w;
+  }
+  inp.value = "";
+  saveState(); renderFocusControls(); SFX.pop();
 }
 function renderPlayControls(){
   const withPets = S.students.filter(s => s.pet);
@@ -1226,6 +1406,28 @@ function stopParade(){
 }
 
 /* =====================================================================
+   PER-STUDENT LINKS — a student's own link opens only their pet
+   (or their egg to create it). No name picker, no one else's pet.
+   ===================================================================== */
+let studentMode = false;
+function routeStudent(){
+  const sid = params.get("student");
+  if(!sid) return false;
+  const st = S.students.find(s => s.id === sid);
+  if(!st){
+    document.body.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:inherit;">
+      <div><div style="font-size:64px;">🥚</div>
+      <h2 style="color:#e07a3f;">Hmm, I can't find your pet!</h2>
+      <p style="margin-top:8px;font-size:17px;">Please ask your teacher for your pet link. 🍎</p></div></div>`;
+    return true;
+  }
+  studentMode = true;
+  const hb = $("#petHomeBtn"); if(hb) hb.style.display = "none";
+  if(st.pet) openPetRoom(st.id); else startCreate(st.id);
+  return true;
+}
+
+/* =====================================================================
    WIRING + START
    ===================================================================== */
 function wire(){
@@ -1263,6 +1465,12 @@ function wire(){
     $("#newStudentName").value = "";
     saveState(); renderTeacher(); renderHome();
   });
+  $("#addWordBtn").addEventListener("click", addCustomWord);
+  $("#newWordInput").addEventListener("keydown", e => { if(e.key === "Enter") addCustomWord(); });
+  $("#bulkAddBtn").addEventListener("click", bulkAddStudents);
+  $("#appBaseInput").addEventListener("change", e => {
+    S.settings.appBase = e.target.value.trim(); saveState(); renderLinks();
+  });
   $("#resetDemoBtn").addEventListener("click", ()=>{
     if(!confirm("Reset all demo data back to the starting class?")) return;
     if(CONNECTED){ alert("Connected to your Sheet — reset from the Teacher Dashboard roster instead."); return; }
@@ -1276,6 +1484,7 @@ function wire(){
   await loadState();
   wire();
   renderHome();
+  if(routeStudent()) return;
   if(params.get("view") === "teacher"){ renderTeacher(); show("teacher"); }
   else show("home");
 })();
