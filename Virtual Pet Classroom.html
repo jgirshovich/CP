@@ -1,0 +1,1284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Class Pets — Kindergarten Virtual Pet</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { height:100%; overflow:hidden; }
+  body {
+    font-family:"Comic Sans MS","Chalkboard SE","Segoe UI Rounded",Verdana,sans-serif;
+    background:#fdf6ec; color:#4a3728; user-select:none; -webkit-user-select:none;
+  }
+  button { font-family:inherit; cursor:pointer; border:none; }
+  .view { display:none; height:100%; flex-direction:column; }
+  .view.active { display:flex; }
+
+  /* ---------- shared ---------- */
+  .topbar {
+    display:flex; align-items:center; gap:10px; padding:10px 14px;
+    background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.08); z-index:30; position:relative;
+  }
+  .topbar h1 { font-size:22px; color:#e07a3f; letter-spacing:.5px; }
+  .topbar .spacer { flex:1; }
+  .chip {
+    background:#fff3e2; border:2px solid #ffd9ae; border-radius:999px;
+    padding:5px 12px; font-size:16px; font-weight:bold; color:#8a5a2b;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .bigbtn {
+    border-radius:18px; padding:12px 20px; font-size:19px; font-weight:bold;
+    background:#ffb35c; color:#fff; box-shadow:0 4px 0 #e07a3f;
+    transition:transform .08s, box-shadow .08s;
+  }
+  .bigbtn:active { transform:translateY(3px); box-shadow:0 1px 0 #e07a3f; }
+  .bigbtn.green { background:#7bc47f; box-shadow:0 4px 0 #4e9a51; }
+  .bigbtn.blue  { background:#64b5f6; box-shadow:0 4px 0 #3d85c6; }
+  .bigbtn.pink  { background:#f48fb1; box-shadow:0 4px 0 #c95d86; }
+  .bigbtn.gray  { background:#b0a696; box-shadow:0 4px 0 #857a68; }
+  .bigbtn.small { padding:8px 14px; font-size:15px; border-radius:13px; }
+
+  /* ---------- home / name picker ---------- */
+  #view-home { background:linear-gradient(180deg,#ffe9c7,#fdf6ec); overflow-y:auto; }
+  .home-wrap { padding:22px 18px 40px; max-width:900px; margin:0 auto; width:100%; }
+  .home-wrap h2 { text-align:center; font-size:30px; color:#e07a3f; margin:6px 0 4px; }
+  .home-wrap p.sub { text-align:center; font-size:17px; color:#8a6d4f; margin-bottom:20px; }
+  .namegrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px; }
+  .namecard {
+    background:#fff; border:3px solid #ffe1ba; border-radius:20px; padding:12px 8px 10px;
+    text-align:center; box-shadow:0 3px 8px rgba(0,0,0,.06);
+  }
+  .namecard:active { transform:scale(.97); }
+  .namecard .mini { height:86px; display:flex; align-items:center; justify-content:center; }
+  .namecard .mini svg { height:84px; }
+  .namecard .who { font-size:19px; font-weight:bold; margin-top:4px; }
+  .namecard .petname { font-size:14px; color:#a3805c; }
+  .namecard .makepet { font-size:15px; color:#e07a3f; font-weight:bold; }
+  .emptyart { font-size:64px; line-height:86px; }
+
+  /* ---------- creation wizard ---------- */
+  #view-create { background:linear-gradient(180deg,#ffe9c7,#fdf6ec); overflow-y:auto; }
+  .create-wrap { padding:18px; max-width:860px; margin:0 auto; width:100%; }
+  .create-wrap h2 { text-align:center; font-size:27px; color:#e07a3f; margin-bottom:4px; }
+  .create-wrap p.sub { text-align:center; color:#8a6d4f; font-size:16px; margin-bottom:16px; }
+  .pickrow { display:flex; flex-wrap:wrap; gap:14px; justify-content:center; }
+  .pickcard {
+    background:#fff; border:4px solid #ffe1ba; border-radius:20px; width:142px; padding:8px 4px 6px;
+    text-align:center; font-weight:bold; font-size:17px;
+  }
+  .pickcard svg { height:96px; }
+  .pickcard.sel { border-color:#ffb35c; background:#fff6ea; transform:scale(1.04); }
+  .swatches { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin:6px 0 4px; }
+  .swatch { width:52px; height:52px; border-radius:50%; border:4px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,.25); }
+  .swatch.sel { border-color:#4a3728; transform:scale(1.12); }
+  #createPreview { display:flex; justify-content:center; margin:8px 0; }
+  #createPreview svg { height:190px; }
+  #createPreview2 { display:flex; justify-content:center; margin:8px 0; }
+  .nameinput {
+    display:block; margin:10px auto; font-family:inherit; font-size:24px; font-weight:bold;
+    text-align:center; padding:10px 16px; border:3px solid #ffd9ae; border-radius:16px;
+    width:min(360px,90%); color:#4a3728; background:#fff;
+  }
+  .namechips { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:8px; }
+  .namechips button { background:#fff; border:2px solid #ffd9ae; border-radius:999px; padding:7px 14px; font-size:16px; font-weight:bold; color:#8a5a2b; }
+  .center { text-align:center; }
+  .stepdots { text-align:center; font-size:15px; color:#c8a273; margin-bottom:10px; letter-spacing:3px; }
+
+  /* ---------- pet room ---------- */
+  #view-pet { position:relative; }
+  #scene { position:relative; flex:1; overflow:hidden; touch-action:none; }
+  #scene.indoor { background:linear-gradient(180deg,#ffe3ba 0%,#ffe9c9 55%,#d9a066 55.2%,#c98d54 100%); }
+  #scene.outdoor { background:linear-gradient(180deg,#aee3ff 0%,#cdeffd 52%,#8ed081 52.2%,#6fbf5e 100%); }
+  .window {
+    position:absolute; top:7%; left:6%; width:19%; aspect-ratio:1/1.1; background:#bde6ff;
+    border:8px solid #fff; border-radius:10px; box-shadow:0 3px 8px rgba(0,0,0,.12);
+  }
+  .window::after { content:"☀️"; position:absolute; font-size:34px; top:8%; left:10%; }
+  .poster {
+    position:absolute; top:6.5%; left:50%; transform:translateX(-50%) rotate(-1.5deg);
+    width:17%; min-width:110px; aspect-ratio:.92; background:#fffdf4; border:6px solid #e07a3f;
+    border-radius:8px; box-shadow:0 4px 9px rgba(0,0,0,.15);
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+  }
+  .poster .glyph { font-size:64px; font-weight:bold; color:#d3542e; line-height:1; display:flex; align-items:center; justify-content:center; }
+  .poster .glyph svg { width:60px; height:60px; }
+  .poster .cap { font-size:13px; color:#a3805c; font-weight:bold; margin-top:2px; }
+  .rug {
+    position:absolute; bottom:9%; left:50%; transform:translateX(-50%);
+    width:52%; height:15%; background:radial-gradient(ellipse at center,#f7a8b8 0%,#ef7d95 70%,#e56a84 100%);
+    border-radius:50%; opacity:.85;
+  }
+  .tree { position:absolute; top:16%; right:5%; font-size:110px; display:none; }
+  #scene.outdoor .tree { display:block; }
+  #scene.outdoor .window, #scene.outdoor .poster, #scene.outdoor .rug { display:none; }
+  .sun { position:absolute; top:5%; right:8%; font-size:64px; display:none; }
+  #scene.outdoor .sun { display:block; }
+  .blocks { position:absolute; bottom:12%; left:5%; display:none; gap:4px; }
+  #scene.indoor .blocks { display:flex; }
+  .block {
+    width:44px; height:44px; border-radius:7px; color:#fff; font-weight:bold; font-size:24px;
+    display:flex; align-items:center; justify-content:center; box-shadow:inset 0 -5px 0 rgba(0,0,0,.18), 0 2px 4px rgba(0,0,0,.2);
+  }
+  .block svg { width:26px; height:26px; }
+  .bowl { position:absolute; bottom:10%; right:6%; font-size:52px; filter:drop-shadow(0 3px 2px rgba(0,0,0,.25)); }
+  .butterfly { position:absolute; font-size:30px; display:none; transition:left 2.4s ease-in-out, top 2.4s ease-in-out; }
+  #scene.outdoor .butterfly { display:block; }
+
+  .petactor { position:absolute; width:190px; height:172px; margin-left:-95px; margin-top:-172px; z-index:10; will-change:left,top; }
+  .petactor svg { width:100%; height:100%; overflow:visible; }
+  .petactor.guest { width:150px; height:136px; margin-left:-75px; margin-top:-136px; z-index:9; }
+  .petactor .nametag {
+    position:absolute; top:-14px; left:50%; transform:translateX(-50%);
+    background:rgba(255,255,255,.92); border:2px solid #ffd9ae; color:#8a5a2b;
+    font-size:13px; font-weight:bold; padding:1px 9px; border-radius:999px; white-space:nowrap;
+  }
+  @keyframes bob { 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-4px);} }
+  @keyframes wag { 0%,100%{ transform:rotate(-9deg);} 50%{ transform:rotate(13deg);} }
+  @keyframes swingA { 0%,100%{ transform:rotate(16deg);} 50%{ transform:rotate(-16deg);} }
+  @keyframes swingB { 0%,100%{ transform:rotate(-16deg);} 50%{ transform:rotate(16deg);} }
+  @keyframes flap { 0%,100%{ transform:rotate(0deg);} 50%{ transform:rotate(-24deg);} }
+  .petbody { animation:bob 1.6s ease-in-out infinite; }
+  .walking .petbody { animation:bob .34s ease-in-out infinite; }
+  .tail { transform-origin:15% 85%; animation:wag 1.1s ease-in-out infinite; }
+  .excited .tail { animation-duration:.32s; }
+  .legA { transform-origin:50% 8%; } .legB { transform-origin:50% 8%; }
+  .walking .legA { animation:swingA .34s ease-in-out infinite; }
+  .walking .legB { animation:swingB .34s ease-in-out infinite; }
+  .wing { transform-origin:80% 20%; }
+  .excited .wing { animation:flap .3s ease-in-out infinite; }
+  .eye-closed { display:none; }
+  .petted .eye, .sleepy .eye { display:none; }
+  .petted .eye-closed, .sleepy .eye-closed { display:block; }
+  @keyframes bounceit { 0%{ transform:translateY(0) scale(1,1);} 30%{ transform:translateY(-26px) scale(.96,1.05);} 55%{ transform:translateY(0) scale(1.06,.92);} 75%{ transform:translateY(-9px) scale(1,1);} 100%{ transform:translateY(0) scale(1,1);} }
+  .bouncing { animation:bounceit .55s ease; }
+  @keyframes munch { 0%,100%{ transform:rotate(0deg);} 50%{ transform:rotate(4deg) translateY(3px);} }
+  .eating .petbody { animation:munch .28s ease-in-out infinite; }
+
+  #bubble {
+    position:absolute; z-index:20; max-width:250px; background:#fff; border:3px solid #ffb35c;
+    border-radius:18px; padding:9px 14px; font-size:19px; font-weight:bold; color:#6b4423;
+    box-shadow:0 4px 10px rgba(0,0,0,.13); display:none; text-align:center; line-height:1.25;
+  }
+  #bubble .huge { font-size:40px; color:#d3542e; }
+  #bubble::after {
+    content:""; position:absolute; bottom:-13px; left:38px; border:7px solid transparent; border-top:9px solid #ffb35c;
+  }
+  .heart {
+    position:absolute; z-index:25; pointer-events:none; font-size:26px;
+    animation:floatup 1.15s ease-out forwards;
+  }
+  @keyframes floatup { 0%{ transform:translateY(0) scale(.6); opacity:0;} 20%{ opacity:1;} 100%{ transform:translateY(-95px) scale(1.15) rotate(9deg); opacity:0;} }
+  .zz {
+    position:absolute; z-index:25; pointer-events:none; font-size:22px; color:#7d9cc4; font-weight:bold;
+    animation:floatup 2.2s ease-out forwards;
+  }
+  #ball {
+    position:absolute; width:44px; height:44px; margin-left:-22px; margin-top:-44px; z-index:8;
+    font-size:40px; display:none; filter:drop-shadow(0 3px 2px rgba(0,0,0,.3));
+  }
+  #treats {
+    position:absolute; z-index:22; bottom:19%; left:50%; transform:translateX(-50%);
+    display:none; gap:16px;
+  }
+  .treat {
+    width:86px; height:86px; border-radius:50%; background:radial-gradient(circle at 38% 34%,#e8b06e,#c07f3e);
+    border:4px solid #9c6527; color:#fff; font-size:36px; font-weight:bold;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 5px 9px rgba(0,0,0,.25);
+  }
+  .treat svg { width:44px; height:44px; }
+  .treat:active { transform:scale(.93); }
+  @keyframes wiggle { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-6px);} 75%{transform:translateX(6px);} }
+  .wiggling { animation:wiggle .3s ease 2; }
+  #visitBanner {
+    position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:26; display:none;
+    background:#7bc47f; color:#fff; font-weight:bold; font-size:18px; padding:9px 20px;
+    border-radius:999px; box-shadow:0 4px 10px rgba(0,0,0,.2);
+  }
+
+  .carebar { display:flex; align-items:center; gap:6px; font-size:15px; font-weight:bold; color:#8a5a2b; }
+  .meter { width:96px; height:14px; background:#f3e3cd; border-radius:99px; overflow:hidden; border:2px solid #e8cdb0; }
+  .meter > div { height:100%; border-radius:99px; transition:width .5s; }
+  .meter .food { background:linear-gradient(90deg,#ffb35c,#ff8a3d); }
+  .meter .love { background:linear-gradient(90deg,#f48fb1,#ec5f92); }
+  #actionbar {
+    display:flex; gap:10px; justify-content:center; padding:12px 10px calc(12px + env(safe-area-inset-bottom));
+    background:#fff; box-shadow:0 -2px 8px rgba(0,0,0,.08); z-index:30; position:relative; flex-wrap:wrap;
+  }
+  .actbtn {
+    font-size:19px; font-weight:bold; border-radius:16px; padding:13px 18px; color:#fff;
+    display:inline-flex; align-items:center; gap:7px;
+  }
+  .actbtn:active { transform:scale(.95); }
+  .actbtn.feed { background:#ff8a3d; box-shadow:0 4px 0 #d96f24; }
+  .actbtn.play { background:#64b5f6; box-shadow:0 4px 0 #3d85c6; }
+  .actbtn.out  { background:#7bc47f; box-shadow:0 4px 0 #4e9a51; }
+  .actbtn.nap  { background:#9575cd; box-shadow:0 4px 0 #6d4fa1; }
+
+  /* ---------- teacher ---------- */
+  #view-teacher { background:#f7f2ea; overflow-y:auto; }
+  .teach-wrap { padding:18px; max-width:1020px; margin:0 auto; width:100%; }
+  .panel { background:#fff; border-radius:18px; padding:16px 18px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+  .panel h3 { color:#e07a3f; font-size:20px; margin-bottom:10px; }
+  .panel p.note { font-size:14px; color:#8a6d4f; margin-top:8px; line-height:1.45; }
+  .focusbtns { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
+  .focusbtns button {
+    background:#fff3e2; border:2px solid #ffd9ae; border-radius:12px; padding:8px 13px;
+    font-size:17px; font-weight:bold; color:#8a5a2b; min-width:48px;
+  }
+  .focusbtns button.sel { background:#ffb35c; color:#fff; border-color:#e07a3f; }
+  .focusbtns button svg { width:22px; height:22px; vertical-align:-5px; }
+  .roster { display:grid; grid-template-columns:repeat(auto-fill,minmax(225px,1fr)); gap:12px; }
+  .rcard { border:2px solid #f0e2cd; border-radius:16px; padding:10px 12px; background:#fffdf8; }
+  .rcard .rhead { display:flex; align-items:center; gap:9px; }
+  .rcard .rhead svg { height:52px; }
+  .rcard .rname { font-weight:bold; font-size:17px; }
+  .rcard .rpet { font-size:13px; color:#a3805c; }
+  .rcard .rbtns { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .rcard .rbtns button { font-size:13px; padding:6px 10px; border-radius:9px; font-weight:bold; background:#fff3e2; color:#8a5a2b; border:2px solid #ffd9ae; }
+  .rcard .rbtns button.danger { background:#fdecea; border-color:#f3c1bc; color:#b03a2e; }
+  .mini-meter { height:9px; background:#f3e3cd; border-radius:99px; overflow:hidden; margin:3px 0; }
+  .mini-meter > div { height:100%; }
+  select, .textin {
+    font-family:inherit; font-size:16px; padding:9px 12px; border:2px solid #ffd9ae;
+    border-radius:11px; background:#fff; color:#4a3728;
+  }
+  .rowflex { display:flex; gap:9px; flex-wrap:wrap; align-items:center; }
+  #syncStatus { font-size:13px; color:#a3805c; font-weight:bold; }
+
+  /* ---------- parade ---------- */
+  #view-parade { position:relative; }
+  #paradeScene { position:relative; flex:1; overflow:hidden; touch-action:none;
+    background:linear-gradient(180deg,#aee3ff 0%,#cdeffd 52%,#8ed081 52.2%,#6fbf5e 100%); }
+  #paradeBall { position:absolute; width:48px; height:48px; margin-left:-24px; margin-top:-48px; font-size:44px; z-index:8; }
+</style>
+</head>
+<body>
+
+<!-- ================= HOME / NAME PICKER ================= -->
+<div id="view-home" class="view">
+  <div class="home-wrap">
+    <h2>🐾 Our Class Pets 🐾</h2>
+    <p class="sub">Tap your name to visit your pet!</p>
+    <div class="namegrid" id="nameGrid"></div>
+    <div class="center" style="margin-top:26px;">
+      <button class="bigbtn gray small" id="toTeacherBtn">🍎 Teacher</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= CREATE A PET ================= -->
+<div id="view-create" class="view">
+  <div class="create-wrap">
+    <div class="stepdots" id="stepDots">● ○ ○</div>
+    <h2 id="createTitle">Choose your pet!</h2>
+    <p class="sub" id="createSub"></p>
+
+    <div id="stepAnimal">
+      <div class="pickrow" id="animalRow"></div>
+      <div class="center" style="margin-top:18px;">
+        <button class="bigbtn" id="animalNext">Next ➜</button>
+      </div>
+    </div>
+
+    <div id="stepColor" style="display:none;">
+      <div id="createPreview"></div>
+      <div class="swatches" id="swatchRow"></div>
+      <div class="center" style="margin-top:14px;">
+        <button class="bigbtn gray" id="colorBack">⬅ Back</button>
+        <button class="bigbtn" id="colorNext">Next ➜</button>
+      </div>
+    </div>
+
+    <div id="stepName" style="display:none;">
+      <div id="createPreview2"></div>
+      <input class="nameinput" id="petNameInput" maxlength="14" placeholder="Pet's name">
+      <div class="namechips" id="nameChips"></div>
+      <div class="center" style="margin-top:12px;">
+        <button class="bigbtn gray" id="nameBack">⬅ Back</button>
+        <button class="bigbtn green" id="createDone">❤️ Adopt my pet!</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= PET ROOM ================= -->
+<div id="view-pet" class="view">
+  <div class="topbar">
+    <button class="bigbtn gray small" id="petHomeBtn">🏠</button>
+    <h1 id="petTitle">My Pet</h1>
+    <div class="spacer"></div>
+    <span class="chip">⭐ <span id="starCount">0</span></span>
+    <div class="carebar">🍖 <div class="meter"><div class="food" id="foodMeter"></div></div></div>
+    <div class="carebar">💗 <div class="meter"><div class="love" id="loveMeter"></div></div></div>
+  </div>
+  <div id="scene" class="indoor">
+    <div class="window"></div>
+    <div class="poster"><div class="glyph" id="posterGlyph">B</div><div class="cap" id="posterCap">We are learning…</div></div>
+    <div class="rug"></div>
+    <div class="sun">☀️</div>
+    <div class="tree">🌳</div>
+    <div class="blocks" id="blocksRow"></div>
+    <div class="bowl">🥣</div>
+    <div class="butterfly" id="bfly">🦋</div>
+    <div id="bubble"></div>
+    <div id="ball">⚽</div>
+    <div id="treats"></div>
+    <div id="visitBanner"></div>
+    <div id="petActor"></div>
+    <div id="guestActor"></div>
+  </div>
+  <div id="actionbar">
+    <button class="actbtn feed" id="feedBtn">🍎 Feed</button>
+    <button class="actbtn play" id="playBtn">⚽ Play</button>
+    <button class="actbtn out" id="outBtn">🌳 Go Outside</button>
+    <button class="actbtn nap" id="napBtn">😴 Nap</button>
+  </div>
+</div>
+
+<!-- ================= TEACHER ================= -->
+<div id="view-teacher" class="view">
+  <div class="topbar">
+    <button class="bigbtn gray small" id="teachHomeBtn">⬅ Class Pets</button>
+    <h1>🍎 Teacher Dashboard</h1>
+    <div class="spacer"></div>
+    <span id="syncStatus"></span>
+  </div>
+  <div class="teach-wrap">
+
+    <div class="panel">
+      <h3>📚 What are we learning?</h3>
+      <div class="rowflex">
+        <span style="font-weight:bold;">Kind:</span>
+        <select id="focusType">
+          <option value="letter">Letter</option>
+          <option value="number">Number</option>
+          <option value="shape">Shape</option>
+          <option value="color">Color</option>
+          <option value="word">Sight Word</option>
+          <option value="custom">My Own</option>
+        </select>
+        <input class="textin" id="focusCustom" placeholder="Type it here" style="display:none; width:170px;">
+      </div>
+      <div class="focusbtns" id="focusBtns"></div>
+      <p class="note">This shows up in every pet's room — on the wall poster, on the toy blocks, in the pet's speech bubble,
+      and in the Feed game, where the pet asks for the matching treat.</p>
+    </div>
+
+    <div class="panel">
+      <h3>🎉 Pet Parade &amp; Visits</h3>
+      <div class="rowflex">
+        <select id="paradeA"></select><span>＋</span><select id="paradeB"></select>
+        <button class="bigbtn pink small" id="paradeBtn">Start Pet Parade!</button>
+      </div>
+      <div class="rowflex" style="margin-top:12px;">
+        <span>Send</span><select id="visitGuest"></select><span>'s pet to visit</span><select id="visitHost"></select>
+        <button class="bigbtn blue small" id="visitBtn">Send Visit</button>
+      </div>
+      <p class="note">Parade opens a big play scene with two pets together — great on the classroom screen.
+      A visit sends a friend's pet into that student's room for two minutes.</p>
+    </div>
+
+    <div class="panel">
+      <h3>🐾 Class Roster</h3>
+      <div class="roster" id="rosterGrid"></div>
+      <div class="rowflex" style="margin-top:14px;">
+        <input class="textin" id="newStudentName" placeholder="New student's name">
+        <button class="bigbtn green small" id="addStudentBtn">＋ Add Student</button>
+        <button class="bigbtn gray small" id="resetDemoBtn">Reset Demo Data</button>
+      </div>
+      <p class="note">Tap “Visit” on a card to open that student's pet room on this screen.
+      “New pet” clears a student's pet so they can create a new one.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================= PARADE ================= -->
+<div id="view-parade" class="view">
+  <div class="topbar">
+    <button class="bigbtn gray small" id="paradeExit">⬅ Done</button>
+    <h1>🎉 Pet Parade!</h1>
+    <div class="spacer"></div>
+    <span class="chip" id="paradeNames"></span>
+  </div>
+  <div id="paradeScene">
+    <div class="tree" style="display:block;">🌳</div>
+    <div class="sun" style="display:block;">☀️</div>
+    <div id="paradeBall">🎾</div>
+    <div id="paradeA1" class="petactor"></div>
+    <div id="paradeA2" class="petactor"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   CLASS PETS — kindergarten virtual pet
+   Student pets + teacher dashboard. Works standalone (demo data saved
+   on this device) or connected to a Google Sheet via Apps Script —
+   open with ?gas=<your web app URL> or ?view=teacher for the dashboard.
+   ===================================================================== */
+
+/* ---------------- helpers ---------------- */
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+function shade(hex, pct){
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n>>16)&255, g = (n>>8)&255, b = n&255;
+  const t = pct < 0 ? 0 : 255, p = Math.abs(pct)/100;
+  r = Math.round((t-r)*p + r); g = Math.round((t-g)*p + g); b = Math.round((t-b)*p + b);
+  return "#" + ((1<<24) + (r<<16) + (g<<8) + b).toString(16).slice(1);
+}
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+/* ---------------- sounds (gentle, pet-like — no voices) ---------------- */
+let AC = null;
+function audio(){ if(!AC){ try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(AC && AC.state==="suspended") AC.resume(); return AC; }
+function tone(freq, dur, type, vol, when, slideTo){
+  const ac = audio(); if(!ac) return;
+  const o = ac.createOscillator(), g = ac.createGain();
+  const t = ac.currentTime + (when||0);
+  o.type = type||"sine"; o.frequency.setValueAtTime(freq, t);
+  if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol||0.12, t + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + dur + 0.05);
+}
+const SFX = {
+  chirp(){ tone(660, .14, "sine", .1, 0, 990); tone(880, .16, "sine", .09, .1, 1180); },
+  pop(){ tone(420, .09, "triangle", .14, 0, 760); },
+  munch(){ for(let i=0;i<3;i++) tone(180 - i*25, .07, "square", .05, i*.13); },
+  sparkle(){ [880, 1174, 1568].forEach((f,i)=> tone(f, .16, "sine", .09, i*.07)); },
+  purrTick(){ tone(58, .09, "sine", .16); tone(46, .08, "triangle", .12, .02); },
+  boing(){ tone(300, .2, "sine", .1, 0, 90); tone(500, .18, "sine", .08, .05, 950); },
+  sniff(){ tone(300, .06, "triangle", .05, 0, 380); tone(300, .06, "triangle", .05, .09, 380); },
+  snore(){ tone(120, .4, "sine", .05, 0, 80); },
+};
+
+/* ---------------- constants ---------------- */
+const SPECIES = {
+  dog:    { label:"Dog",    emoji:"🐶", def:"#b08968" },
+  cat:    { label:"Cat",    emoji:"🐱", def:"#f4a259" },
+  bunny:  { label:"Bunny",  emoji:"🐰", def:"#f7cad9" },
+  bird:   { label:"Bird",   emoji:"🐦", def:"#7fc8f8" },
+  dragon: { label:"Dragon", emoji:"🐲", def:"#95d5b2" },
+};
+const PALETTE = ["#f4a259","#e76f51","#e63946","#f48fb1","#c77dff","#7fc8f8","#4cc9f0","#95d5b2","#74c69d","#ffd166","#b08968","#adb5bd"];
+const NAME_IDEAS = ["Biscuit","Coco","Peanut","Sunny","Mochi","Waffles","Pickles","Bean","Pudding","Noodle","Maple","Ziggy"];
+const LETTER_WORDS = {A:"Apple",B:"Ball",C:"Cat",D:"Dog",E:"Egg",F:"Fish",G:"Grapes",H:"Hat",I:"Ice",J:"Juice",K:"Kite",L:"Lion",M:"Moon",N:"Nest",O:"Orange",P:"Pig",Q:"Queen",R:"Rain",S:"Sun",T:"Tree",U:"Umbrella",V:"Van",W:"Whale",X:"Fox",Y:"Yo-yo",Z:"Zebra"};
+const SIGHT_WORDS = ["the","and","I","see","like","my","we","can","go","is","you","it"];
+const SHAPES = ["circle","square","triangle","star","heart","rectangle"];
+const COLOR_WORDS = { red:"#e63946", blue:"#4361ee", green:"#2a9d8f", yellow:"#ffd166", orange:"#f4842b", purple:"#8338ec", pink:"#ef6aa5", brown:"#9c6644" };
+function shapeSVG(shape, color){
+  const c = color || "#d3542e";
+  const inner = {
+    circle:   `<circle cx="30" cy="30" r="24" fill="${c}"/>`,
+    square:   `<rect x="7" y="7" width="46" height="46" rx="5" fill="${c}"/>`,
+    triangle: `<path d="M30 6 L55 52 L5 52 Z" fill="${c}"/>`,
+    star:     `<path d="M30 4 L38 22 L57 23 L42 35 L47 54 L30 43 L13 54 L18 35 L3 23 L22 22 Z" fill="${c}"/>`,
+    heart:    `<path d="M30 52 C6 34 8 12 22 10 C27 9 30 13 30 16 C30 13 33 9 38 10 C52 12 54 34 30 52 Z" fill="${c}"/>`,
+    rectangle:`<rect x="4" y="15" width="52" height="30" rx="5" fill="${c}"/>`,
+  }[shape] || "";
+  return `<svg viewBox="0 0 60 60">${inner}</svg>`;
+}
+
+/* =====================================================================
+   PET ART — layered SVG, colored per student
+   ===================================================================== */
+function petSVG(type, color){
+  const c = color, d = shade(color, -22), l = shade(color, 38);
+  const eye = (x,y)=>`<circle class="eye" cx="${x}" cy="${y}" r="4.6" fill="#2d2320"/><circle class="eye" cx="${x+1.6}" cy="${y-1.6}" r="1.5" fill="#fff"/>`;
+  const eyeC = (x,y)=>`<path class="eye-closed" d="M${x-5} ${y} Q${x} ${y-5} ${x+5} ${y}" stroke="#2d2320" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
+  const cheek = (x,y)=>`<ellipse cx="${x}" cy="${y}" rx="7" ry="4.4" fill="#ff9d9d" opacity=".65"/>`;
+  const legs = `<rect class="legA" x="72" y="156" width="15" height="24" rx="7" fill="${d}"/><rect class="legB" x="122" y="156" width="15" height="24" rx="7" fill="${d}"/>`;
+  let inner = "";
+  if(type === "dog"){
+    inner = `
+      <path class="tail" d="M34 122 Q8 108 16 78" stroke="${d}" stroke-width="12" fill="none" stroke-linecap="round"/>
+      ${legs}
+      <g class="petbody">
+        <ellipse cx="104" cy="134" rx="52" ry="34" fill="${c}"/>
+        <ellipse cx="116" cy="147" rx="33" ry="19" fill="${l}" opacity=".6"/>
+        <circle cx="158" cy="92" r="30" fill="${c}"/>
+        <ellipse cx="138" cy="80" rx="11" ry="22" fill="${d}" transform="rotate(18 138 80)"/>
+        <ellipse cx="180" cy="104" rx="15" ry="10.5" fill="${l}"/>
+        <circle cx="191" cy="99" r="5.4" fill="#2d2320"/>
+        <path d="M182 108 Q188 113 194 108" stroke="#2d2320" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        ${eye(163,86)}${eyeC(163,86)}${cheek(148,102)}
+      </g>`;
+  } else if(type === "cat"){
+    inner = `
+      <path class="tail" d="M32 142 Q2 128 8 82" stroke="${c}" stroke-width="11" fill="none" stroke-linecap="round"/>
+      ${legs}
+      <g class="petbody">
+        <ellipse cx="104" cy="134" rx="50" ry="32" fill="${c}"/>
+        <ellipse cx="114" cy="146" rx="31" ry="18" fill="${l}" opacity=".6"/>
+        <path d="M136 76 L132 48 L158 60 Z" fill="${c}"/><path d="M140 68 L138 56 L150 62 Z" fill="#ffb3c1"/>
+        <path d="M166 62 L186 46 L188 76 Z" fill="${c}"/><path d="M172 62 L182 54 L183 68 Z" fill="#ffb3c1"/>
+        <circle cx="157" cy="94" r="28" fill="${c}"/>
+        <path d="M172 104 L177 100 L182 104 L177 109 Z" fill="#ef6aa5"/>
+        <g stroke="rgba(45,35,32,.4)" stroke-width="1.8" stroke-linecap="round">
+          <path d="M128 96 L108 92"/><path d="M128 104 L109 106"/><path d="M184 96 L202 92"/><path d="M184 104 L201 106"/>
+        </g>
+        ${eye(148,90)}${eyeC(148,90)}${eye(170,90)}${eyeC(170,90)}${cheek(138,104)}${cheek(178,104)}
+      </g>`;
+  } else if(type === "bunny"){
+    inner = `
+      <circle cx="54" cy="126" r="13" fill="#ffffff" opacity=".95"/>
+      <ellipse cx="80" cy="166" rx="19" ry="8" fill="${d}"/><ellipse cx="140" cy="166" rx="17" ry="8" fill="${d}"/>
+      <g class="petbody">
+        <ellipse cx="146" cy="38" rx="10" ry="32" fill="${c}"/><ellipse cx="146" cy="40" rx="4.6" ry="21" fill="#ffb3c1"/>
+        <ellipse cx="170" cy="36" rx="10" ry="33" fill="${c}"/><ellipse cx="170" cy="38" rx="4.6" ry="22" fill="#ffb3c1"/>
+        <ellipse cx="102" cy="136" rx="48" ry="32" fill="${c}"/>
+        <ellipse cx="112" cy="148" rx="30" ry="18" fill="${l}" opacity=".65"/>
+        <circle cx="156" cy="96" r="27" fill="${c}"/>
+        <path d="M168 106 L172 103 L176 106 L172 110 Z" fill="#ef6aa5"/>
+        <rect x="167" y="112" width="9" height="8" rx="1.5" fill="#fff" stroke="rgba(0,0,0,.15)"/>
+        ${eye(148,92)}${eyeC(148,92)}${eye(168,92)}${eyeC(168,92)}${cheek(140,104)}${cheek(176,104)}
+      </g>`;
+  } else if(type === "bird"){
+    inner = `
+      <g stroke="#f4842b" stroke-width="4" stroke-linecap="round"><path d="M96 168 L96 180"/><path d="M124 168 L124 180"/></g>
+      <g fill="${d}"><path d="M62 128 L34 116 L40 138 L30 140 L48 152 Z"/></g>
+      <g class="petbody">
+        <circle cx="108" cy="118" r="47" fill="${c}"/>
+        <ellipse cx="110" cy="136" rx="28" ry="22" fill="${l}" opacity=".65"/>
+        <ellipse class="wing" cx="88" cy="116" rx="15" ry="26" fill="${d}"/>
+        <ellipse cx="104" cy="66" rx="6" ry="13" fill="${d}" transform="rotate(-14 104 66)"/>
+        <ellipse cx="118" cy="63" rx="6" ry="14" fill="${d}" transform="rotate(10 118 63)"/>
+        <path d="M140 104 L164 111 L140 120 Z" fill="#f4842b"/>
+        ${eye(124,98)}${eyeC(124,98)}${cheek(108,112)}
+      </g>`;
+  } else { /* dragon */
+    inner = `
+      <path class="tail" d="M34 138 Q6 132 12 104 L22 116 L14 96 Q30 104 38 118" stroke="${c}" stroke-width="11" fill="none" stroke-linecap="round"/>
+      ${legs}
+      <g class="petbody">
+        <path class="wing" d="M84 106 Q52 58 96 52 Q110 82 100 108 Z" fill="${d}"/>
+        <ellipse cx="104" cy="134" rx="50" ry="33" fill="${c}"/>
+        <ellipse cx="114" cy="146" rx="30" ry="19" fill="${l}" opacity=".7"/>
+        <path d="M66 106 L58 92 L74 98 Z" fill="${d}"/><path d="M84 100 L78 84 L94 94 Z" fill="${d}"/>
+        <circle cx="157" cy="94" r="28" fill="${c}"/>
+        <path d="M140 70 L134 52 L150 60 Z" fill="#ffe8c2"/><path d="M166 62 L168 44 L180 58 Z" fill="#ffe8c2"/>
+        <ellipse cx="178" cy="104" rx="14" ry="10" fill="${l}"/>
+        <circle cx="184" cy="101" r="2.2" fill="#2d2320"/><circle cx="174" cy="101" r="2.2" fill="#2d2320"/>
+        ${eye(160,88)}${eyeC(160,88)}${cheek(146,102)}
+      </g>`;
+  }
+  return `<svg viewBox="0 0 220 200">${inner}</svg>`;
+}
+
+/* =====================================================================
+   STATE + STORAGE — demo mode (this device) or Google Sheets backend
+   ===================================================================== */
+const LS_KEY = "classpets_v1";
+const params = new URLSearchParams(location.search);
+let GAS_URL = params.get("gas") || localStorage.getItem("classpets_gas") || "";
+if(params.get("gas")) localStorage.setItem("classpets_gas", GAS_URL);
+const CONNECTED = !!GAS_URL;
+
+function uid(){ return "s" + Math.random().toString(36).slice(2, 9); }
+function demoState(){
+  const mk = (name, pet) => ({ id: uid(), name, pet: pet || null,
+    hunger: 70, happiness: 75, stars: 0 });
+  return {
+    settings: { focusType:"letter", focus:"B", visit:null },
+    students: [
+      mk("Emma",  { type:"cat",   color:"#f4a259", name:"Whiskers" }),
+      mk("Liam",  { type:"dog",   color:"#b08968", name:"Biscuit" }),
+      mk("Ava",   null), mk("Noah", null), mk("Mia", null),
+      mk("Lucas", null), mk("Zoe",  null), mk("Eli",  null),
+    ],
+  };
+}
+let S = null;
+
+async function loadState(){
+  if(CONNECTED){
+    try{
+      const data = await gasGet();
+      if(data && data.students){ S = data; setSync("☁️ Connected to your Google Sheet"); return; }
+    }catch(e){ /* fall through to local */ }
+    setSync("⚠️ Sheet not reachable — using this device only");
+  }
+  try{ S = JSON.parse(localStorage.getItem(LS_KEY)) || demoState(); }
+  catch(e){ S = demoState(); }
+  if(!CONNECTED) setSync("Demo mode — saved on this iPad only");
+}
+let saveTimer = null;
+function saveState(){
+  if(!CONNECTED){ localStorage.setItem(LS_KEY, JSON.stringify(S)); return; }
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{ gasPost({ action:"saveState", state:S }).catch(()=>{}); }, 350);
+}
+function setSync(txt){ const el = $("#syncStatus"); if(el) el.textContent = txt; }
+
+/* Apps Script calls (JSONP read, form POST write — same pattern as Art Studio) */
+function gasGet(){
+  return new Promise((resolve, reject)=>{
+    const cb = "cb" + Math.random().toString(36).slice(2, 10);
+    const sc = document.createElement("script");
+    const to = setTimeout(()=>{ cleanup(); reject(new Error("timeout")); }, 9000);
+    function cleanup(){ clearTimeout(to); try{ delete window[cb]; }catch(e){} sc.remove(); }
+    window[cb] = d => { cleanup(); resolve(d); };
+    sc.onerror = ()=>{ cleanup(); reject(new Error("load")); };
+    sc.src = GAS_URL + (GAS_URL.includes("?") ? "&" : "?") + "callback=" + cb;
+    document.body.appendChild(sc);
+  });
+}
+async function gasPost(obj){
+  const body = new URLSearchParams({ payload: JSON.stringify(obj) });
+  await fetch(GAS_URL, { method:"POST", mode:"no-cors", body });
+}
+
+/* ---------------- router ---------------- */
+let currentView = "home";
+function show(view){
+  currentView = view;
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  $("#view-" + view).classList.add("active");
+  if(view === "pet") startPetLoop(); else stopPetLoop();
+  if(view === "parade") startParade(); else stopParade();
+}
+
+/* ---------------- home / name picker ---------------- */
+function renderHome(){
+  const g = $("#nameGrid"); g.innerHTML = "";
+  S.students.forEach(st => {
+    const card = document.createElement("div"); card.className = "namecard";
+    if(st.pet){
+      card.innerHTML = `<div class="mini">${petSVG(st.pet.type, st.pet.color)}</div>
+        <div class="who">${esc(st.name)}</div><div class="petname">${esc(st.pet.name)} the ${SPECIES[st.pet.type].label}</div>`;
+    } else {
+      card.innerHTML = `<div class="mini"><div class="emptyart">🥚</div></div>
+        <div class="who">${esc(st.name)}</div><div class="makepet">Make a pet!</div>`;
+    }
+    card.addEventListener("click", ()=>{
+      audio(); SFX.pop();
+      if(st.pet) openPetRoom(st.id); else startCreate(st.id);
+    });
+    g.appendChild(card);
+  });
+}
+
+/* ---------------- creation wizard ---------------- */
+let wiz = null;
+function startCreate(studentId){
+  wiz = { studentId, type:"dog", color: SPECIES.dog.def, step:1 };
+  $("#createSub").textContent = "For " + (S.students.find(s=>s.id===studentId)||{}).name;
+  renderAnimalRow(); showStep(1); show("create");
+}
+function showStep(n){
+  wiz.step = n;
+  $("#stepAnimal").style.display = n===1 ? "" : "none";
+  $("#stepColor").style.display  = n===2 ? "" : "none";
+  $("#stepName").style.display   = n===3 ? "" : "none";
+  $("#stepDots").textContent = n===1 ? "● ○ ○" : n===2 ? "● ● ○" : "● ● ●";
+  $("#createTitle").textContent = n===1 ? "Choose your pet!" : n===2 ? "Pick a color!" : "Name your pet!";
+  if(n===2) $("#createPreview").innerHTML = petSVG(wiz.type, wiz.color);
+  if(n===3){
+    $("#createPreview2").innerHTML = petSVG(wiz.type, wiz.color);
+    $("#createPreview2").style.display = "flex"; $("#createPreview2").style.justifyContent = "center";
+    $("#createPreview2").querySelector("svg").style.height = "170px";
+  }
+}
+function renderAnimalRow(){
+  const row = $("#animalRow"); row.innerHTML = "";
+  Object.keys(SPECIES).forEach(t => {
+    const b = document.createElement("button");
+    b.className = "pickcard" + (wiz.type === t ? " sel" : "");
+    b.innerHTML = petSVG(t, SPECIES[t].def) + `<div>${SPECIES[t].label}</div>`;
+    b.addEventListener("click", ()=>{ wiz.type = t; wiz.color = SPECIES[t].def; SFX.pop(); renderAnimalRow(); renderSwatches(); });
+    row.appendChild(b);
+  });
+  renderSwatches();
+}
+function renderSwatches(){
+  const row = $("#swatchRow"); if(!row) return; row.innerHTML = "";
+  PALETTE.forEach(col => {
+    const b = document.createElement("button");
+    b.className = "swatch" + (wiz.color === col ? " sel" : "");
+    b.style.background = col;
+    b.addEventListener("click", ()=>{ wiz.color = col; SFX.pop();
+      $("#createPreview").innerHTML = petSVG(wiz.type, wiz.color); renderSwatches(); });
+    row.appendChild(b);
+  });
+}
+function renderNameChips(){
+  const row = $("#nameChips"); row.innerHTML = "";
+  NAME_IDEAS.forEach(n => {
+    const b = document.createElement("button"); b.textContent = n;
+    b.addEventListener("click", ()=>{ $("#petNameInput").value = n; SFX.pop(); });
+    row.appendChild(b);
+  });
+}
+function finishCreate(){
+  const st = S.students.find(s => s.id === wiz.studentId); if(!st) return;
+  const nm = $("#petNameInput").value.trim() || "Buddy";
+  st.pet = { type: wiz.type, color: wiz.color, name: nm };
+  st.hunger = 75; st.happiness = 85; st.stars = 0;
+  saveState(); SFX.sparkle();
+  openPetRoom(st.id);
+  setTimeout(()=> showBubble(`Hi! I'm <b>${esc(nm)}</b>!<br>Tap the floor and I'll come to you.<br>Rub my fur to pet me! 💗`, 5200), 350);
+}
+
+/* =====================================================================
+   FOCUS (what the class is learning)
+   ===================================================================== */
+function focusDisplay(){
+  const t = S.settings.focusType, v = S.settings.focus;
+  if(t === "letter") return { text: v, big: v, phrase: `${v} is for ${LETTER_WORDS[v] || ""}!`, cap: `${v} is for ${LETTER_WORDS[v] || ""}` };
+  if(t === "number") return { text: v, big: v, phrase: `Number ${v}!`, cap: `Number ${v}` };
+  if(t === "shape")  return { text: v, big: null, phrase: `A ${v}!`, cap: `Shape: ${v}` };
+  if(t === "color")  return { text: v, big: null, phrase: `${v}!`, cap: v.charAt(0).toUpperCase() + v.slice(1) };
+  if(t === "word")   return { text: v, big: v, phrase: `The word is “${v}”!`, cap: "Sight word" };
+  return { text: v, big: v, phrase: `${v}!`, cap: "We are learning…" };
+}
+function glyphHTML(value, type){
+  if(type === "shape") return shapeSVG(value);
+  if(type === "color") return `<span style="display:inline-block;width:52px;height:52px;border-radius:50%;background:${COLOR_WORDS[value]||"#ccc"};border:4px solid rgba(0,0,0,.12);"></span>`;
+  return esc(value);
+}
+function distractors(){
+  const t = S.settings.focusType, v = S.settings.focus;
+  const pick = arr => arr.filter(x => x !== v).sort(()=>Math.random()-.5).slice(0,2);
+  if(t === "letter") return pick("ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""));
+  if(t === "number"){ const n = parseInt(v,10); return pick(["1","2","3","4","5","6","7","8","9","10"]).slice(0,2); }
+  if(t === "shape") return pick(SHAPES);
+  if(t === "color") return pick(Object.keys(COLOR_WORDS));
+  if(t === "word") return pick(SIGHT_WORDS);
+  return [];
+}
+
+/* =====================================================================
+   PET ROOM
+   ===================================================================== */
+let cur = null;          // current student object
+let P = null;            // pet actor runtime state
+let rafId = null, decayTimer = null, idleTimer = null, pollTimer = null;
+
+function makeActor(el, pet, name, guest){
+  el.className = "petactor" + (guest ? " guest" : "");
+  el.innerHTML = `<div class="nametag">${esc(name)}</div><div class="flip">${petSVG(pet.type, pet.color)}</div>`;
+  return { el, flip: el.querySelector(".flip"), x: 50, y: 90, tx: 50, ty: 90, facing: 1, mode: "idle", speed: 30 };
+}
+function placeActor(a){
+  a.el.style.left = a.x + "%"; a.el.style.top = a.y + "%";
+  a.flip.style.transform = `scaleX(${a.facing})`;
+  const walking = Math.abs(a.tx - a.x) > 1.2 || Math.abs(a.ty - a.y) > 1.2;
+  a.el.classList.toggle("walking", walking && a.mode !== "nap");
+  return walking;
+}
+function stepActor(a, dt){
+  const dx = a.tx - a.x, dy = a.ty - a.y;
+  const dist = Math.hypot(dx, dy);
+  if(dist > 0.6){
+    const sp = a.speed * dt;
+    const mx = dx / dist * Math.min(sp, Math.abs(dx) + 0.001) * (Math.abs(dx) > 0.6 ? 1 : 0);
+    const my = dy / dist * Math.min(sp * 0.55, Math.abs(dy) + 0.001) * (Math.abs(dy) > 0.6 ? 1 : 0);
+    a.x += mx; a.y += my;
+    if(Math.abs(dx) > 1) a.facing = dx > 0 ? 1 : -1;
+  }
+  return placeActor(a);
+}
+
+function openPetRoom(studentId){
+  cur = S.students.find(s => s.id === studentId); if(!cur || !cur.pet) return;
+  $("#scene").className = "indoor";
+  $("#outBtn").innerHTML = "🌳 Go Outside";
+  $("#petTitle").textContent = `${cur.name}'s ${cur.pet.name}`;
+  P = makeActor($("#petActor"), cur.pet, cur.pet.name, false);
+  P.x = 30 + Math.random()*40; P.tx = P.x;
+  placeActor(P);
+  $("#ball").style.display = "none"; ballOn = false;
+  $("#treats").style.display = "none";
+  hideBubble();
+  renderFocusInRoom(); updateMeters(); checkVisit(true);
+  show("pet");
+  setTimeout(()=> showBubble(`Hi, ${esc(cur.name)}! I'm <b>${esc(cur.pet.name)}</b>! 💗`, 2600), 400);
+}
+function renderFocusInRoom(){
+  const f = focusDisplay(), t = S.settings.focusType;
+  const g = $("#posterGlyph");
+  g.innerHTML = glyphHTML(S.settings.focus, t);
+  if(t === "shape" || t === "color") g.querySelector("svg,span").style.width = "60px";
+  $("#posterCap").textContent = f.cap;
+  const ds = distractors();
+  const vals = [S.settings.focus, ds[0], ds[1]].filter(x => x !== undefined);
+  const cols = ["#ef476f", "#118ab2", "#06d6a0"];
+  $("#blocksRow").innerHTML = vals.map((v,i) =>
+    `<div class="block" style="background:${cols[i%3]}">${t==="letter"||t==="number"||t==="word" ? esc(v) : glyphHTML(v, t)}</div>`).join("");
+}
+function updateMeters(){
+  if(!cur) return;
+  $("#foodMeter").style.width = cur.hunger + "%";
+  $("#loveMeter").style.width = cur.happiness + "%";
+  $("#starCount").textContent = cur.stars;
+}
+
+/* ---------- bubble, hearts, zzz ---------- */
+let bubbleTimer = null;
+function showBubble(html, dur){
+  const b = $("#bubble"); if(!b || !P) return;
+  b.innerHTML = html; b.style.display = "block";
+  b.style.left = clamp(P.x - 6, 4, 62) + "%";
+  b.style.top = "calc(" + clamp(P.y - 46, 8, 60) + "% )";
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(hideBubble, dur || 3000);
+}
+function hideBubble(){ const b = $("#bubble"); if(b) b.style.display = "none"; }
+function spawnFloat(txt, cls, x, y){
+  const s = document.createElement("div");
+  s.className = cls; s.textContent = txt;
+  s.style.left = `calc(${x}% + ${(Math.random()*36-18)}px)`;
+  s.style.top = y + "%";
+  $("#scene").appendChild(s);
+  setTimeout(()=> s.remove(), cls === "zz" ? 2300 : 1250);
+}
+function hearts(n, atGuest){
+  const a = atGuest && G ? G : P; if(!a) return;
+  for(let i=0;i<(n||1);i++) setTimeout(()=> spawnFloat("💗", "heart", a.x + (Math.random()*10-5), a.y - 38), i*110);
+}
+
+/* ---------- main loop ---------- */
+function startPetLoop(){
+  stopPetLoop();
+  let last = performance.now();
+  const loop = now => {
+    const dt = Math.min(0.05, (now - last)/1000); last = now;
+    if(P) stepActor(P, dt);
+    if(G){ // guest follows the host pet loosely
+      G.tx = clamp(P.x - 20 * P.facing, 8, 92); G.ty = P.y;
+      stepActor(G, dt);
+    }
+    rafId = requestAnimationFrame(loop);
+  };
+  rafId = requestAnimationFrame(loop);
+  decayTimer = setInterval(()=>{ // gentle decay — pet never gets miserable
+    if(!cur) return;
+    cur.hunger = clamp(cur.hunger - 2, 25, 100);
+    cur.happiness = clamp(cur.happiness - 1, 30, 100);
+    updateMeters(); saveState();
+  }, 25000);
+  idleTimer = setInterval(idleBehavior, 9000);
+  if(CONNECTED) pollTimer = setInterval(pollSettings, 10000);
+}
+function stopPetLoop(){
+  if(rafId) cancelAnimationFrame(rafId);
+  [decayTimer, idleTimer, pollTimer].forEach(t => t && clearInterval(t));
+  rafId = decayTimer = idleTimer = pollTimer = null;
+}
+function idleBehavior(){
+  if(!P || P.mode !== "idle" || $("#treats").style.display === "flex") return;
+  const f = focusDisplay();
+  const r = Math.random();
+  if(cur.hunger < 42){
+    showBubble(`I'm hungry! 🍎<br>Can I have a treat?`, 3200);
+    P.tx = 82; P.ty = 90;
+  } else if(r < 0.45){
+    showBubble(`<span class="huge">${f.text && S.settings.focusType !== "shape" && S.settings.focusType !== "color" ? esc(f.big || f.text) : ""}</span>${(S.settings.focusType==="shape"||S.settings.focusType==="color") ? glyphHTML(S.settings.focus, S.settings.focusType) : ""}<br>${esc(f.phrase)}`, 3000);
+  } else if(r < 0.6){
+    bouncePet(); SFX.chirp();
+  } else if(r < 0.75 && $("#scene").className === "outdoor"){
+    const b = $("#bfly");
+    b.style.left = (8 + Math.random()*80) + "%"; b.style.top = (14 + Math.random()*34) + "%";
+    P.tx = parseFloat(b.style.left); P.ty = 88;
+  }
+}
+
+/* ---------- tricks shared ---------- */
+function bouncePet(atGuest){
+  const a = atGuest && G ? G : P; if(!a) return;
+  a.el.classList.remove("bouncing"); void a.el.offsetWidth;
+  a.el.classList.add("bouncing");
+  a.el.classList.add("excited"); setTimeout(()=> a.el.classList.remove("excited"), 650);
+}
+function petHappy(amount){
+  if(!cur) return;
+  cur.happiness = clamp(cur.happiness + amount, 0, 100);
+  updateMeters(); saveState();
+}
+
+/* ---------- touch: walk to finger, tap, rub/pet ---------- */
+let touch = null;
+function scenePos(e){
+  const r = $("#scene").getBoundingClientRect();
+  return { x: clamp((e.clientX - r.left)/r.width * 100, 6, 94),
+           y: clamp((e.clientY - r.top)/r.height * 100, 62, 97),
+           px: e.clientX, py: e.clientY };
+}
+function overPet(e, actor){
+  if(!actor) return false;
+  const r = actor.el.getBoundingClientRect();
+  return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+}
+function initSceneTouch(){
+  const sc = $("#scene");
+  sc.addEventListener("pointerdown", e => {
+    audio();
+    if(e.target.closest("#treats") || e.target.closest("#bubble")) return;
+    if(P.mode === "nap") return;
+    const onPet = overPet(e, P);
+    touch = { onPet, t0: Date.now(), rub: 0, lastX: e.clientX, lastY: e.clientY, moved: false };
+    if(onPet){ P.el.classList.add("petted"); }
+    else {
+      const p = scenePos(e);
+      if(ballOn){ moveBall(p.x, p.y); }
+      else { P.tx = p.x; P.ty = p.y; }
+    }
+    sc.setPointerCapture && e.pointerId !== undefined && sc.setPointerCapture(e.pointerId);
+  });
+  sc.addEventListener("pointermove", e => {
+    if(!touch || !touch.onPet || P.mode === "nap") return;
+    const dx = e.clientX - touch.lastX, dy = e.clientY - touch.lastY;
+    touch.lastX = e.clientX; touch.lastY = e.clientY;
+    const step = Math.hypot(dx, dy);
+    if(step > 2) touch.moved = true;
+    touch.rub += step;
+    if(touch.rub > 85){ // a good rub = love
+      touch.rub = 0;
+      hearts(1); SFX.purrTick(); petHappy(3);
+      P.el.classList.add("petted", "excited");
+      setTimeout(()=> P.el.classList.remove("excited"), 400);
+    }
+    if(!overPet(e, P)) P.el.classList.remove("petted"); else P.el.classList.add("petted");
+  });
+  const endTouch = e => {
+    if(!touch) return;
+    const wasPet = touch.onPet, dur = Date.now() - touch.t0;
+    P.el.classList.remove("petted");
+    if(wasPet && dur < 260 && !touch.moved){ // simple tap on the pet
+      bouncePet(); SFX.chirp(); hearts(1); petHappy(2);
+    }
+    touch = null;
+  };
+  sc.addEventListener("pointerup", endTouch);
+  sc.addEventListener("pointercancel", endTouch);
+}
+
+/* ---------- feeding = the learning game ---------- */
+let feeding = false;
+function startFeed(){
+  if(!cur || P.mode === "nap") return;
+  hideBall();
+  const t = S.settings.focusType;
+  const f = focusDisplay();
+  P.tx = 74; P.ty = 90; P.facing = 1;
+  const box = $("#treats"); box.innerHTML = "";
+  let options;
+  if(t === "custom"){
+    options = ["🍪","🧁","🍩"].map(em => ({ label: em, ok: true, emoji: true }));
+  } else {
+    const ds = distractors();
+    options = [{ v: S.settings.focus, ok: true }, { v: ds[0], ok: false }, { v: ds[1], ok: false }]
+      .sort(()=>Math.random()-.5)
+      .map(o => ({ label: glyphHTML(o.v, t), ok: o.ok }));
+  }
+  options.forEach(o => {
+    const b = document.createElement("button");
+    b.className = "treat"; b.innerHTML = o.label;
+    b.addEventListener("click", ()=> feedChoice(b, o.ok));
+    box.appendChild(b);
+  });
+  box.style.display = "flex";
+  feeding = true;
+  setTimeout(()=>{
+    if(t === "letter") showBubble(`I'm hungry for…<br><span class="huge">${esc(S.settings.focus)}</span><br>${esc(f.phrase)}`, 3600);
+    else if(t === "shape") showBubble(`I'm hungry for a…<br>${glyphHTML(S.settings.focus, t)}<br>${esc(f.phrase)}`, 3600);
+    else if(t === "color") showBubble(`I'm hungry for…<br>${glyphHTML(S.settings.focus, t)}<br>something <b>${esc(S.settings.focus)}</b>!`, 3600);
+    else showBubble(`I'm hungry for…<br><span class="huge">${esc(f.text)}</span>`, 3600);
+  }, 500);
+  SFX.pop();
+}
+function feedChoice(btn, ok){
+  if(!feeding) return;
+  if(!ok){
+    btn.classList.remove("wiggling"); void btn.offsetWidth; btn.classList.add("wiggling");
+    SFX.sniff();
+    const f = focusDisplay();
+    showBubble(`Hmm… I want <b>${esc(f.text)}</b>!<br>${esc(f.phrase)}`, 2400);
+    return;
+  }
+  feeding = false;
+  $("#treats").style.display = "none";
+  P.el.classList.add("eating");
+  SFX.munch();
+  setTimeout(()=>{ P.el.classList.remove("eating");
+    cur.hunger = clamp(cur.hunger + 32, 0, 100);
+    cur.stars += 1; petHappy(6); updateMeters(); saveState();
+    SFX.sparkle(); hearts(2); bouncePet();
+    const f = focusDisplay();
+    showBubble(`Yum! ⭐<br>${esc(f.phrase)}`, 2800);
+  }, 1250);
+}
+
+/* ---------- play with the ball ---------- */
+let ballOn = false;
+function togglePlay(){
+  if(P.mode === "nap") return;
+  if(ballOn){ hideBall(); return; }
+  $("#treats").style.display = "none"; feeding = false;
+  ballOn = true;
+  const b = $("#ball"); b.style.display = "block";
+  moveBall(20 + Math.random()*55, 90);
+  showBubble("⚽ Throw the ball!<br>Tap where it should go!", 2600);
+  SFX.boing();
+}
+function moveBall(x, y){
+  const b = $("#ball");
+  b.style.left = x + "%"; b.style.top = y + "%";
+  P.tx = x; P.ty = 92;
+  setTimeout(()=>{ if(ballOn){ bouncePet(); SFX.pop();
+    if(Math.random() < .5){ const f = focusDisplay(); showBubble(`Got it! ⚽<br>${esc(f.phrase)}`, 2100); }
+    petHappy(2);
+  }}, 650);
+}
+function hideBall(){ ballOn = false; $("#ball").style.display = "none"; }
+
+/* ---------- outside / nap ---------- */
+function toggleOutside(){
+  const sc = $("#scene");
+  const goingOut = sc.className !== "outdoor";
+  sc.className = goingOut ? "outdoor" : "indoor";
+  $("#outBtn").innerHTML = goingOut ? "🏠 Go Inside" : "🌳 Go Outside";
+  if(goingOut){
+    const b = $("#bfly"); b.style.left = "30%"; b.style.top = "26%";
+    showBubble("Outside! 🌳<br>Tap the grass and I'll run there!", 2800);
+    bouncePet(); SFX.chirp();
+  }
+}
+function napTime(){
+  if(P.mode === "nap") return;
+  hideBall(); $("#treats").style.display = "none"; feeding = false;
+  P.mode = "nap"; P.el.classList.add("sleepy");
+  showBubble("😴 Nap time…", 2000); SFX.snore();
+  let n = 0;
+  const z = setInterval(()=>{ spawnFloat("Z", "zz", P.x + 8, P.y - 44); if(++n >= 4) clearInterval(z); }, 700);
+  setTimeout(()=>{
+    P.mode = "idle"; P.el.classList.remove("sleepy");
+    petHappy(7); bouncePet(); SFX.chirp();
+    showBubble("I feel GREAT! 🌟", 2400);
+  }, 4200);
+}
+
+/* ---------- visits (a friend's pet comes to play) ---------- */
+let G = null; // guest actor
+function checkVisit(first){
+  const v = S.settings.visit;
+  const ga = $("#guestActor");
+  const banner = $("#visitBanner");
+  if(v && cur && v.hostId === cur.id && Date.now() < v.until){
+    const guest = S.students.find(s => s.id === v.guestId);
+    if(guest && guest.pet){
+      if(!G){
+        G = makeActor(ga, guest.pet, guest.pet.name, true);
+        G.x = 88; G.tx = 70; G.y = 90; G.ty = 90; placeActor(G);
+        banner.textContent = `🎉 ${guest.pet.name} came to play with ${cur.pet.name}!`;
+        banner.style.display = "block";
+        if(first !== true) { SFX.sparkle(); hearts(2, true); }
+      }
+      return;
+    }
+  }
+  if(G){ G = null; ga.innerHTML = ""; ga.className = ""; banner.style.display = "none"; }
+}
+async function pollSettings(){
+  try{
+    const data = await gasGet();
+    if(data && data.settings){
+      const oldFocus = S.settings.focusType + S.settings.focus;
+      S.settings = data.settings;
+      if(oldFocus !== S.settings.focusType + S.settings.focus) renderFocusInRoom();
+      checkVisit(false);
+    }
+  }catch(e){}
+}
+
+/* =====================================================================
+   TEACHER DASHBOARD
+   ===================================================================== */
+function renderTeacher(){
+  renderFocusControls(); renderRoster(); renderPlayControls();
+}
+function renderFocusControls(){
+  const t = S.settings.focusType;
+  $("#focusType").value = t;
+  $("#focusCustom").style.display = t === "custom" ? "" : "none";
+  if(t === "custom") $("#focusCustom").value = S.settings.focus;
+  const box = $("#focusBtns"); box.innerHTML = "";
+  const mkBtn = (label, val, html) => {
+    const b = document.createElement("button");
+    if(html) b.innerHTML = html; else b.textContent = label;
+    if(S.settings.focus === val) b.className = "sel";
+    b.addEventListener("click", ()=>{ S.settings.focus = val; saveState(); SFX.pop(); renderFocusControls(); });
+    box.appendChild(b);
+  };
+  if(t === "letter") "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(L => mkBtn(L, L));
+  else if(t === "number") for(let n=1;n<=10;n++) mkBtn(String(n), String(n));
+  else if(t === "shape") SHAPES.forEach(shp => mkBtn(shp, shp, shapeSVG(shp, "#e07a3f") + " " + shp));
+  else if(t === "color") Object.keys(COLOR_WORDS).forEach(cn =>
+    mkBtn(cn, cn, `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${COLOR_WORDS[cn]};vertical-align:-4px;"></span> ${cn}`));
+  else if(t === "word") SIGHT_WORDS.forEach(w => mkBtn(w, w));
+}
+function renderPlayControls(){
+  const withPets = S.students.filter(s => s.pet);
+  const fill = (sel, list) => {
+    const el = $(sel); const prev = el.value;
+    el.innerHTML = list.map(s => `<option value="${s.id}">${esc(s.name)} (${esc(s.pet.name)})</option>`).join("");
+    if(list.some(s => s.id === prev)) el.value = prev;
+  };
+  fill("#paradeA", withPets); fill("#paradeB", withPets);
+  fill("#visitGuest", withPets); fill("#visitHost", withPets);
+  if(withPets.length > 1 && $("#paradeA").value === $("#paradeB").value)
+    $("#paradeB").selectedIndex = 1;
+}
+function renderRoster(){
+  const g = $("#rosterGrid"); g.innerHTML = "";
+  S.students.forEach(st => {
+    const card = document.createElement("div"); card.className = "rcard";
+    const head = st.pet
+      ? `${petSVG(st.pet.type, st.pet.color)}<div><div class="rname">${esc(st.name)}</div><div class="rpet">${esc(st.pet.name)} the ${SPECIES[st.pet.type].label} · ⭐ ${st.stars}</div></div>`
+      : `<div style="font-size:40px;">🥚</div><div><div class="rname">${esc(st.name)}</div><div class="rpet">No pet yet</div></div>`;
+    card.innerHTML = `<div class="rhead">${head}</div>` + (st.pet ? `
+      <div style="font-size:12px;margin-top:6px;">🍖</div><div class="mini-meter"><div style="width:${st.hunger}%;background:#ff8a3d;"></div></div>
+      <div style="font-size:12px;">💗</div><div class="mini-meter"><div style="width:${st.happiness}%;background:#ec5f92;"></div></div>` : "") + `
+      <div class="rbtns">
+        ${st.pet ? `<button data-act="visit">Visit pet</button>` : `<button data-act="create">Make pet</button>`}
+        ${st.pet ? `<button data-act="newpet">New pet</button>` : ""}
+        <button data-act="remove" class="danger">Remove</button>
+      </div>`;
+    card.querySelectorAll("button").forEach(b => b.addEventListener("click", ()=>{
+      const act = b.dataset.act;
+      if(act === "visit"){ openPetRoom(st.id); }
+      if(act === "create"){ startCreate(st.id); }
+      if(act === "newpet"){ if(confirm(`Give ${st.name} a brand-new pet? Their current pet will be cleared.`)){ st.pet = null; st.stars = 0; saveState(); renderTeacher(); renderHome(); } }
+      if(act === "remove"){ if(confirm(`Remove ${st.name} from the class list?`)){ S.students = S.students.filter(x => x.id !== st.id); saveState(); renderTeacher(); renderHome(); } }
+    }));
+    g.appendChild(card);
+  });
+}
+function sendVisit(){
+  const guestId = $("#visitGuest").value, hostId = $("#visitHost").value;
+  if(!guestId || !hostId || guestId === hostId){ alert("Pick two different students who both have pets."); return; }
+  S.settings.visit = { guestId, hostId, until: Date.now() + 2*60*1000 };
+  saveState(); SFX.sparkle();
+  const host = S.students.find(s => s.id === hostId);
+  alert(CONNECTED
+    ? `Visit sent! The guest pet will appear in ${host.name}'s room within a few seconds.`
+    : `Visit ready! Now open ${host.name}'s pet room on this screen to see the two pets play together.`);
+}
+
+/* =====================================================================
+   PET PARADE — two pets play together (teacher screen / big display)
+   ===================================================================== */
+let paradeRAF = null, paradeActors = [], paradeTimer = null, paradeChaser = 0;
+function startParade(){
+  const a = S.students.find(s => s.id === $("#paradeA").value);
+  const b = S.students.find(s => s.id === $("#paradeB").value);
+  if(!a || !b || !a.pet || !b.pet){ show("teacher"); return; }
+  $("#paradeNames").textContent = `${a.pet.name} & ${b.pet.name}`;
+  const A1 = makeActor($("#paradeA1"), a.pet, a.pet.name, false);
+  const A2 = makeActor($("#paradeA2"), b.pet, b.pet.name, false);
+  A1.x = 26; A1.y = 92; A1.tx = 26; A1.ty = 92;
+  A2.x = 74; A2.y = 92; A2.tx = 74; A2.ty = 92;
+  A1.speed = 34; A2.speed = 34;
+  paradeActors = [A1, A2];
+  placeActor(A1); placeActor(A2);
+  const ball = $("#paradeBall"); ball.style.left = "50%"; ball.style.top = "94%";
+  paradeChaser = 0;
+  paradeTimer = setInterval(()=>{
+    const bx = 12 + Math.random()*76;
+    ball.style.left = bx + "%"; ball.style.top = "94%";
+    paradeChaser = 1 - paradeChaser;
+    paradeActors[paradeChaser].tx = bx; paradeActors[paradeChaser].ty = 94;
+    paradeActors[1 - paradeChaser].tx = clamp(bx + (paradeChaser ? -22 : 22), 10, 90);
+    paradeActors[1 - paradeChaser].ty = 92;
+  }, 2300);
+  let last = performance.now();
+  const loop = now => {
+    const dt = Math.min(0.05, (now - last)/1000); last = now;
+    paradeActors.forEach(ac => {
+      const wasFar = Math.hypot(ac.tx - ac.x, ac.ty - ac.y) > 4;
+      stepActor(ac, dt);
+      const near = Math.hypot(ac.tx - ac.x, ac.ty - ac.y) <= 4;
+      if(wasFar && near && Math.random() < .8){
+        ac.el.classList.remove("bouncing"); void ac.el.offsetWidth; ac.el.classList.add("bouncing", "excited");
+        setTimeout(()=> ac.el.classList.remove("excited"), 600);
+        if(Math.random() < .6){
+          const h = document.createElement("div");
+          h.className = "heart"; h.textContent = "💗";
+          h.style.left = ac.x + "%"; h.style.top = (ac.y - 40) + "%";
+          $("#paradeScene").appendChild(h); setTimeout(()=> h.remove(), 1250);
+        }
+        SFX.pop();
+      }
+    });
+    paradeRAF = requestAnimationFrame(loop);
+  };
+  paradeRAF = requestAnimationFrame(loop);
+}
+function stopParade(){
+  if(paradeRAF) cancelAnimationFrame(paradeRAF);
+  if(paradeTimer) clearInterval(paradeTimer);
+  paradeRAF = paradeTimer = null; paradeActors = [];
+}
+
+/* =====================================================================
+   WIRING + START
+   ===================================================================== */
+function wire(){
+  $("#toTeacherBtn").addEventListener("click", ()=>{ renderTeacher(); show("teacher"); });
+  $("#teachHomeBtn").addEventListener("click", ()=>{ renderHome(); show("home"); });
+  $("#petHomeBtn").addEventListener("click", ()=>{ cur = null; G = null; renderHome(); show("home"); });
+  $("#feedBtn").addEventListener("click", ()=>{ audio(); startFeed(); });
+  $("#playBtn").addEventListener("click", ()=>{ audio(); togglePlay(); });
+  $("#outBtn").addEventListener("click", ()=>{ audio(); SFX.pop(); toggleOutside(); });
+  $("#napBtn").addEventListener("click", ()=>{ audio(); napTime(); });
+  $("#animalNext").addEventListener("click", ()=>{ SFX.pop(); showStep(2); });
+  $("#colorBack").addEventListener("click", ()=> showStep(1));
+  $("#colorNext").addEventListener("click", ()=>{ SFX.pop(); showStep(3); });
+  $("#nameBack").addEventListener("click", ()=> showStep(2));
+  $("#createDone").addEventListener("click", finishCreate);
+  $("#focusType").addEventListener("change", e => {
+    const t = e.target.value;
+    S.settings.focusType = t;
+    S.settings.focus = t === "letter" ? "B" : t === "number" ? "5" : t === "shape" ? "star" :
+                         t === "color" ? "red" : t === "word" ? "the" : "★";
+    saveState(); renderFocusControls();
+  });
+  $("#focusCustom").addEventListener("change", e => {
+    S.settings.focus = e.target.value.trim() || "★"; saveState();
+  });
+  $("#paradeBtn").addEventListener("click", ()=>{
+    if(S.students.filter(s => s.pet).length < 2){ alert("At least two students need pets for a parade. Emma and Liam already have pets in the demo!"); return; }
+    show("parade");
+  });
+  $("#paradeExit").addEventListener("click", ()=>{ renderTeacher(); show("teacher"); });
+  $("#visitBtn").addEventListener("click", sendVisit);
+  $("#addStudentBtn").addEventListener("click", ()=>{
+    const nm = $("#newStudentName").value.trim(); if(!nm) return;
+    S.students.push({ id: uid(), name: nm, pet: null, hunger: 75, happiness: 80, stars: 0 });
+    $("#newStudentName").value = "";
+    saveState(); renderTeacher(); renderHome();
+  });
+  $("#resetDemoBtn").addEventListener("click", ()=>{
+    if(!confirm("Reset all demo data back to the starting class?")) return;
+    if(CONNECTED){ alert("Connected to your Sheet — reset from the Teacher Dashboard roster instead."); return; }
+    localStorage.removeItem(LS_KEY); S = demoState(); saveState();
+    renderTeacher(); renderHome();
+  });
+  initSceneTouch();
+  renderNameChips();
+}
+(async function init(){
+  await loadState();
+  wire();
+  renderHome();
+  if(params.get("view") === "teacher"){ renderTeacher(); show("teacher"); }
+  else show("home");
+})();
+</script>
+</body>
+</html>
