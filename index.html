@@ -631,7 +631,14 @@ async function loadState(){
   if(CONNECTED){
     try{
       const data = await gasGet();
-      if(data && data.students){ S = data; setSync("☁️ Connected to your Google Sheet"); }
+      if(data && data.settings){
+        // A fresh sheet returns students:null (no roster yet) — that is a
+        // successful connection, not a failure. Start with an empty class so
+        // the teacher's bulk-added roster is the only roster (the demo class
+        // is only for the standalone, unconnected demo).
+        S = data.students ? data : { students: [], settings: data.settings };
+        setSync("☁️ Connected to your Google Sheet");
+      }
     }catch(e){ /* fall through to local */ }
     if(!S) setSync("⚠️ Sheet not reachable — using this device only");
   }
