@@ -70,7 +70,7 @@
   .pickcard svg { height:96px; }
   .pickcard.sel { border-color:#ffb35c; background:#fff6ea; transform:scale(1.04); }
   .swatches { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin:6px 0 4px; }
-  .swatch { width:52px; height:52px; border-radius:50%; border:4px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,.25); }
+  .swatch { width:52px; height:52px; border-radius:50%; border:4px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,.25); outline:1px solid rgba(0,0,0,.18); }
   .swatch.sel { border-color:#4a3728; transform:scale(1.12); }
   #createPreview { display:flex; justify-content:center; margin:8px 0; }
   #createPreview svg { height:190px; }
@@ -216,6 +216,31 @@
   .actbtn.play { background:#64b5f6; box-shadow:0 4px 0 #3d85c6; }
   .actbtn.out  { background:#7bc47f; box-shadow:0 4px 0 #4e9a51; }
   .actbtn.nap  { background:#9575cd; box-shadow:0 4px 0 #6d4fa1; }
+  .actbtn.shop { background:#ec407a; box-shadow:0 4px 0 #b92c5a; }
+  .actbtn.tricks { background:#5c6bc0; box-shadow:0 4px 0 #3949ab; }
+  .actbtn.quiz { background:#26a69a; box-shadow:0 4px 0 #00796b; }
+  .patternbtn { font-size:15px; padding:8px 14px; border-radius:99px; font-weight:bold; background:#fff3e2; border:2px solid #ffd9ae; color:#8a5a2b; }
+  .patternbtn.sel { background:#4a3728; color:#fff; }
+  .block.quiz { cursor:pointer; animation:blkpulse 1s infinite; }
+  @keyframes blkpulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.14); } }
+  #toast { position:fixed; left:50%; top:14px; transform:translateX(-50%) translateY(-8px); background:#fff8d6; border:2px solid #ffd166; color:#4a3728; font-weight:bold; font-size:18px; padding:10px 18px; border-radius:99px; box-shadow:0 4px 12px rgba(0,0,0,.2); opacity:0; transition:opacity .25s, transform .25s; z-index:200; pointer-events:none; }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  .roompanel { display:none; position:absolute; left:50%; transform:translateX(-50%); bottom:86px; width:min(92%,430px); background:#fffdf4; border:3px solid #ffd9ae; border-radius:16px; box-shadow:0 8px 24px rgba(0,0,0,.25); padding:14px; z-index:40; max-height:48%; overflow:auto; }
+  .roompanel.open { display:block; }
+  .roompanel h3 { margin:0 0 8px; }
+  .shoprow, .trickrow { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px dashed #ffd9ae; }
+  .shoprow:last-child, .trickrow:last-child { border-bottom:none; }
+  .shoprow .nm, .trickrow .nm { flex:1; text-align:left; font-weight:bold; }
+  .shoprow button, .trickrow button { font-size:15px; padding:8px 14px; border-radius:10px; font-weight:bold; background:#ff8a3d; color:#fff; border:none; }
+  .shoprow button:disabled, .trickrow button:disabled { background:#d8cbb6; }
+  .decor-item { position:absolute; font-size:58px; z-index:4; line-height:1; }
+  #hoop { position:absolute; left:50%; top:34%; width:120px; height:120px; margin-left:-60px; border:10px solid #e63946; border-radius:50%; display:none; z-index:6; }
+  @keyframes rollspin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+  .rolling { animation:rollspin .8s ease; }
+  @keyframes jumpup { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-70px); } }
+  .jumping { animation:jumpup .9s ease; }
+  .goalbar { height:16px; background:#f3e3cd; border-radius:99px; overflow:hidden; margin:6px 0; }
+  .goalbar > div { height:100%; background:#4e9a51; }
 
   /* ---------- teacher ---------- */
   #view-teacher { background:#f7f2ea; overflow-y:auto; }
@@ -286,6 +311,8 @@
     <div id="stepColor" style="display:none;">
       <div id="createPreview"></div>
       <div class="swatches" id="swatchRow"></div>
+      <div style="margin-top:12px;font-weight:bold;">Spots?</div>
+      <div class="rowflex" id="patternRow" style="justify-content:center;"></div>
       <div class="center" style="margin-top:14px;">
         <button class="bigbtn gray" id="colorBack">⬅ Back</button>
         <button class="bigbtn" id="colorNext">Next ➜</button>
@@ -311,6 +338,7 @@
     <h1 id="petTitle">My Pet</h1>
     <div class="spacer"></div>
     <span class="chip">⭐ <span id="starCount">0</span></span>
+    <span class="chip" id="goalChip" style="display:none;">🎯 <span id="goalText"></span></span>
     <div class="carebar">🍖 <div class="meter"><div class="food" id="foodMeter"></div></div></div>
     <div class="carebar">💗 <div class="meter"><div class="love" id="loveMeter"></div></div></div>
   </div>
@@ -337,12 +365,20 @@
     <div id="visitBanner"></div>
     <div id="petActor"></div>
     <div id="guestActor"></div>
+    <div id="decor"></div>
+    <div id="hoop"></div>
   </div>
   <div id="actionbar">
     <button class="actbtn feed" id="feedBtn">🍎 Feed</button>
     <button class="actbtn play" id="playBtn">⚽ Play</button>
     <button class="actbtn out" id="outBtn">🌳 Go Outside</button>
     <button class="actbtn nap" id="napBtn">😴 Nap</button>
+    <button class="actbtn shop" id="shopBtn">🛍️ Shop</button>
+    <button class="actbtn tricks" id="tricksBtn">🎪 Tricks</button>
+    <button class="actbtn quiz" id="quizBtn">🔍 Find it!</button>
+  </div>
+  <div class="roompanel" id="shopPanel"><h3>🛍️ Pet Shop</h3><div id="shopRows"></div><div class="center" style="margin-top:8px;"><button class="bigbtn gray small" id="shopClose">Close</button></div></div>
+  <div class="roompanel" id="tricksPanel"><h3>🎪 Pet Tricks</h3><p class="note" style="margin:0 0 6px;">Tricks unlock with stars — and tricks are free to do!</p><div id="trickRows"></div><div class="center" style="margin-top:8px;"><button class="bigbtn gray small" id="tricksClose">Close</button></div></div>
   </div>
 </div>
 
@@ -378,6 +414,20 @@
       </div>
       <p class="note">This shows up in every pet's room — on the wall poster, on the toy blocks, in the pet's speech bubble,
       and in the Feed game, where the pet asks for the matching treat.</p>
+    </div>
+
+    <div class="panel">
+      <h3>🎯 Class Goal</h3>
+      <p class="note" style="margin:0 0 8px;">All the class's stars add up to one goal — pick something fun to work toward together!</p>
+      <div class="rowflex">
+        <span style="font-weight:bold;">Goal:</span>
+        <input class="textin" id="goalInput" type="number" min="1" style="width:100px;">
+        <span style="font-weight:bold;">⭐ for</span>
+        <input class="textin" id="goalLabelInput" placeholder="Class Party" style="flex:1; min-width:160px;">
+      </div>
+      <div class="goalbar"><div id="goalBarFill" style="width:0%;"></div></div>
+      <div id="goalText2" style="font-weight:bold;"></div>
+      <div id="goalBanner" style="display:none; font-size:20px; font-weight:bold; color:#4e9a51; margin-top:6px;"></div>
     </div>
 
     <div class="panel">
@@ -443,6 +493,8 @@
   </div>
 </div>
 
+<div id="toast"></div>
+
 <script>
 "use strict";
 /* =====================================================================
@@ -497,7 +549,25 @@ const SPECIES = {
   bird:   { label:"Bird",   emoji:"🐦", def:"#7fc8f8" },
   dragon: { label:"Dragon", emoji:"🐲", def:"#95d5b2" },
 };
-const PALETTE = ["#f4a259","#e76f51","#e63946","#f48fb1","#c77dff","#7fc8f8","#4cc9f0","#95d5b2","#74c69d","#ffd166","#b08968","#adb5bd"];
+const PALETTE = ["#f4a259","#e76f51","#e63946","#f48fb1","#c77dff","#7fc8f8","#4cc9f0","#95d5b2","#74c69d","#ffd166","#b08968","#adb5bd","#262626","#ffffff","#e8c39e"];
+const SPOT_COLORWAYS = [
+  { name:"Dalmatian", color:"#262626" },
+  { name:"Cocoa", color:"#6b4226" },
+  { name:"Rosy", color:"#ef6aa5" },
+  { name:"Snowy", color:"#ffffff" },
+];
+const SHOP_ITEMS = [
+  { id:"bed", name:"Cozy Bed", emoji:"🛏️", price:5, where:"indoor" },
+  { id:"doghouse", name:"Doghouse", emoji:"🏠", price:8, where:"outdoor" },
+  { id:"slide", name:"Slide", emoji:"🛝", price:10, where:"outdoor" },
+  { id:"ball", name:"Bouncy Ball", emoji:"🎾", price:3, where:"outdoor" },
+  { id:"sunglasses", name:"Sunglasses", emoji:"😎", price:5, where:"worn" },
+  { id:"hat", name:"Cool Hat", emoji:"🎩", price:5, where:"worn" },
+];
+const TRICKS = [
+  { id:"roll", name:"Roll Over", emoji:"🔄", stars:10 },
+  { id:"hoop", name:"Jump Through Hoop", emoji:"🎪", stars:25 },
+];
 const NAME_IDEAS = ["Biscuit","Coco","Peanut","Sunny","Mochi","Waffles","Pickles","Bean","Pudding","Noodle","Maple","Ziggy"];
 const LETTER_WORDS = {A:"Apple",B:"Ball",C:"Cat",D:"Dog",E:"Egg",F:"Fish",G:"Grapes",H:"Hat",I:"Ice",J:"Juice",K:"Kite",L:"Lion",M:"Moon",N:"Nest",O:"Orange",P:"Pig",Q:"Queen",R:"Rain",S:"Sun",T:"Tree",U:"Umbrella",V:"Van",W:"Whale",X:"Fox",Y:"Yo-yo",Z:"Zebra"};
 const SIGHT_WORDS = ["the","and","I","see","like","my","we","can","go","is","you","it"];
@@ -519,7 +589,68 @@ function shapeSVG(shape, color){
 /* =====================================================================
    PET ART — layered SVG, colored per student
    ===================================================================== */
-function petSVG(type, color){
+/* Body geometry per species (for spots + accessories). */
+const BODY_GEO = {
+  dog:    { bx:104, by:134, brx:52, bry:34, hx:158, hy:92, hr:30, ex:158, ey:88 },
+  cat:    { bx:104, by:134, brx:50, bry:32, hx:157, hy:94, hr:28, ex:159, ey:90 },
+  bunny:  { bx:102, by:136, brx:48, bry:32, hx:156, hy:96, hr:27, ex:158, ey:92 },
+  bird:   { bx:108, by:118, brx:47, bry:47, hx:108, hy:118, hr:47, ex:112, ey:98 },
+  dragon: { bx:104, by:134, brx:50, bry:33, hx:157, hy:94, hr:28, ex:160, ey:88 },
+};
+function hashSeed(s){
+  let h = 2166136261; s = String(s == null ? "x" : s);
+  for(let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+/* Spots overlay, clipped to the body + head so spots never spill outside.
+   Placement is seeded, so a pet's spots look the same everywhere it appears. */
+function spotsParts(type, color, seed){
+  const g = BODY_GEO[type] || BODY_GEO.dog;
+  const rnd = mulberry32(hashSeed(seed));
+  let spots = "";
+  const put = (x, y, rx, ry, rot) => {
+    spots += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}" fill="${color}" transform="rotate(${rot.toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})"/>`;
+  };
+  for(let i = 0; i < 6; i++){
+    const ang = rnd() * Math.PI * 2, rr = Math.sqrt(rnd()) * 0.78;
+    put(g.bx + Math.cos(ang) * rr * g.brx, g.by + Math.sin(ang) * rr * g.bry,
+        3.5 + rnd() * 3.5, 3 + rnd() * 3, Math.floor(rnd() * 180));
+  }
+  if(type !== "bird"){
+    for(let i = 0; i < 2; i++){
+      const ang = Math.PI * (0.15 + rnd() * 0.7), rr = 0.45 + rnd() * 0.25;
+      put(g.hx + Math.cos(ang) * rr * g.hr, g.hy + Math.sin(ang) * rr * g.hr,
+          2.5 + rnd() * 2, 2 + rnd() * 1.5, Math.floor(rnd() * 180));
+    }
+  }
+  const clipId = "sp" + String(seed == null ? "x" : seed).replace(/[^a-zA-Z0-9]/g, "");
+  const clip = `<clipPath id="${clipId}"><ellipse cx="${g.bx}" cy="${g.by}" rx="${g.brx}" ry="${g.bry}"/>${type !== "bird" ? `<circle cx="${g.hx}" cy="${g.hy}" r="${g.hr}"/>` : ""}</clipPath>`;
+  return { clip, group: `<g clip-path="url(#${clipId})">${spots}</g>` };
+}
+/* Shop accessories worn on the pet (sunglasses, hat). */
+function extrasSVG(type, extras){
+  if(!extras || !extras.length) return "";
+  const g = BODY_GEO[type] || BODY_GEO.dog;
+  let out = "";
+  if(extras.includes("sunglasses")){
+    out += `<g><rect x="${g.ex - 26}" y="${g.ey - 9}" width="22" height="16" rx="7" fill="#262626"/><rect x="${g.ex + 4}" y="${g.ey - 9}" width="22" height="16" rx="7" fill="#262626"/><rect x="${g.ex - 4}" y="${g.ey - 2}" width="8" height="4" fill="#262626"/><circle cx="${g.ex - 19}" cy="${g.ey - 4}" r="3" fill="#ffffff" opacity=".7"/><circle cx="${g.ex + 11}" cy="${g.ey - 4}" r="3" fill="#ffffff" opacity=".7"/></g>`;
+  }
+  if(extras.includes("hat")){
+    const top = g.hy - g.hr;
+    out += `<g><ellipse cx="${g.hx}" cy="${top + 6}" rx="26" ry="7" fill="#e63946"/><path d="M${g.hx - 20} ${top + 4} Q${g.hx} ${top - 26} ${g.hx + 20} ${top + 4} Z" fill="#e63946"/><circle cx="${g.hx}" cy="${top - 24}" r="5" fill="#ffd166"/></g>`;
+  }
+  return out;
+}
+function petSVG(type, color, pattern, seed, extras){
+
   const c = color, d = shade(color, -22), l = shade(color, 38);
   const eye = (x,y)=>`<circle class="eye" cx="${x}" cy="${y}" r="4.6" fill="#2d2320"/><circle class="eye" cx="${x+1.6}" cy="${y-1.6}" r="1.5" fill="#fff"/>`;
   const eyeC = (x,y)=>`<path class="eye-closed" d="M${x-5} ${y} Q${x} ${y-5} ${x+5} ${y}" stroke="#2d2320" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
@@ -599,7 +730,12 @@ function petSVG(type, color){
         ${eye(160,88)}${eyeC(160,88)}${cheek(146,102)}
       </g>`;
   }
-  return `<svg viewBox="0 0 220 200">${inner}</svg>`;
+  let extra = "";
+  let clip = "";
+  if(pattern){ const sp = spotsParts(type, pattern, seed); clip = sp.clip; extra += sp.group; }
+  extra += extrasSVG(type, extras);
+  if(extra) inner = inner.replace(/<\/g>$/, extra + "</g>");
+  return `<svg viewBox="0 0 220 200">${clip}${inner}</svg>`;
 }
 
 /* =====================================================================
@@ -614,9 +750,9 @@ const CONNECTED = !!GAS_URL;
 function uid(){ return "s" + Math.random().toString(36).slice(2, 9); }
 function demoState(){
   const mk = (name, pet) => ({ id: uid(), name, pet: pet || null,
-    hunger: 70, happiness: 75, stars: 0 });
+    hunger: 70, happiness: 75, stars: 0, items: [] });
   return {
-    settings: { focusType:"letter", focus:"B", visit:null, customWords:[], appBase:"" },
+    settings: { focusType:"letter", focus:"B", visit:null, customWords:[], appBase:"", classGoal:100, classGoalLabel:"Class Party" },
     students: [
       mk("Emma",  { type:"cat",   color:"#f4a259", name:"Whiskers" }),
       mk("Liam",  { type:"dog",   color:"#b08968", name:"Biscuit" }),
@@ -650,6 +786,12 @@ async function loadState(){
   if(!S.settings) S.settings = demoState().settings;
   if(!Array.isArray(S.settings.customWords)) S.settings.customWords = [];
   if(typeof S.settings.appBase !== "string") S.settings.appBase = "";
+  if(typeof S.settings.classGoal !== "number") S.settings.classGoal = 100;
+  if(typeof S.settings.classGoalLabel !== "string") S.settings.classGoalLabel = "Class Party";
+  S.students.forEach(st => {
+    if(st.pet && st.pet.pattern === undefined) st.pet.pattern = null;
+    if(!Array.isArray(st.items)) st.items = [];
+  });
 }
 let saveTimer = null;
 function saveState(){
@@ -693,7 +835,7 @@ function renderHome(){
   S.students.forEach(st => {
     const card = document.createElement("div"); card.className = "namecard";
     if(st.pet){
-      card.innerHTML = `<div class="mini">${petSVG(st.pet.type, st.pet.color)}</div>
+      card.innerHTML = `<div class="mini">${petSVG(st.pet.type, st.pet.color, st.pet.pattern || null, st.id, wornItems(st))}</div>
         <div class="who">${esc(st.name)}</div><div class="petname">${esc(st.pet.name)} the ${SPECIES[st.pet.type].label}</div>`;
     } else {
       card.innerHTML = `<div class="mini"><div class="emptyart">🥚</div></div>
@@ -710,7 +852,7 @@ function renderHome(){
 /* ---------------- creation wizard ---------------- */
 let wiz = null;
 function startCreate(studentId){
-  wiz = { studentId, type:"dog", color: SPECIES.dog.def, step:1 };
+  wiz = { studentId, type:"dog", color: SPECIES.dog.def, pattern:null, step:1 };
   $("#createSub").textContent = "For " + (S.students.find(s=>s.id===studentId)||{}).name;
   renderAnimalRow(); showStep(1); show("create");
 }
@@ -721,9 +863,9 @@ function showStep(n){
   $("#stepName").style.display   = n===3 ? "" : "none";
   $("#stepDots").textContent = n===1 ? "● ○ ○" : n===2 ? "● ● ○" : "● ● ●";
   $("#createTitle").textContent = n===1 ? "Choose your pet!" : n===2 ? "Pick a color!" : "Name your pet!";
-  if(n===2) $("#createPreview").innerHTML = petSVG(wiz.type, wiz.color);
+  if(n===2){ $("#createPreview").innerHTML = petSVG(wiz.type, wiz.color, wiz.pattern, wiz.studentId); renderPatternRow(); }
   if(n===3){
-    $("#createPreview2").innerHTML = petSVG(wiz.type, wiz.color);
+    $("#createPreview2").innerHTML = petSVG(wiz.type, wiz.color, wiz.pattern, wiz.studentId);
     $("#createPreview2").style.display = "flex"; $("#createPreview2").style.justifyContent = "center";
     $("#createPreview2").querySelector("svg").style.height = "170px";
   }
@@ -746,9 +888,22 @@ function renderSwatches(){
     b.className = "swatch" + (wiz.color === col ? " sel" : "");
     b.style.background = col;
     b.addEventListener("click", ()=>{ wiz.color = col; SFX.pop();
-      $("#createPreview").innerHTML = petSVG(wiz.type, wiz.color); renderSwatches(); });
+      $("#createPreview").innerHTML = petSVG(wiz.type, wiz.color, wiz.pattern, wiz.studentId); renderSwatches(); });
     row.appendChild(b);
   });
+}
+function renderPatternRow(){
+  const row = $("#patternRow"); if(!row) return; row.innerHTML = "";
+  const mkBtn = (label, pat) => {
+    const b = document.createElement("button");
+    b.className = "patternbtn" + (wiz.pattern === pat ? " sel" : "");
+    b.textContent = label;
+    b.addEventListener("click", ()=>{ wiz.pattern = pat; SFX.pop();
+      $("#createPreview").innerHTML = petSVG(wiz.type, wiz.color, wiz.pattern, wiz.studentId); renderPatternRow(); });
+    row.appendChild(b);
+  };
+  mkBtn("Solid", null);
+  SPOT_COLORWAYS.forEach(cw => mkBtn(cw.name, cw.color));
 }
 function renderNameChips(){
   const row = $("#nameChips"); row.innerHTML = "";
@@ -761,8 +916,8 @@ function renderNameChips(){
 function finishCreate(){
   const st = S.students.find(s => s.id === wiz.studentId); if(!st) return;
   const nm = $("#petNameInput").value.trim() || "Buddy";
-  st.pet = { type: wiz.type, color: wiz.color, name: nm };
-  st.hunger = 75; st.happiness = 85; st.stars = 0;
+  st.pet = { type: wiz.type, color: wiz.color, name: nm, pattern: wiz.pattern || null };
+  st.hunger = 75; st.happiness = 85; st.stars = 0; st.items = [];
   saveState(); SFX.sparkle();
   openPetRoom(st.id);
   setTimeout(()=> showBubble(`Hi! I'm <b>${esc(nm)}</b>!<br>Tap the floor and I'll come to you.<br>Rub my fur to pet me! 💗`, 5200), 350);
@@ -800,13 +955,14 @@ function distractors(){
    PET ROOM
    ===================================================================== */
 let cur = null;          // current student object
+let quizActive = false;
 let P = null;            // pet actor runtime state
 let lastInteract = Date.now(); // last time the student touched something
 let rafId = null, decayTimer = null, idleTimer = null, pollTimer = null, visitTimer = null;
 
-function makeActor(el, pet, name, guest){
+function makeActor(el, pet, name, guest, seed, extras){
   el.className = "petactor" + (guest ? " guest" : "");
-  el.innerHTML = `<div class="nametag">${esc(name)}</div><div class="flip">${petSVG(pet.type, pet.color)}</div>`;
+  el.innerHTML = `<div class="nametag">${esc(name)}</div><div class="flip">${petSVG(pet.type, pet.color, pet.pattern || null, seed, extras)}</div>`;
   return { el, flip: el.querySelector(".flip"), x: 50, y: 90, tx: 50, ty: 90, facing: 1, mode: "idle", speed: 30 };
 }
 function placeActor(a){
@@ -834,16 +990,38 @@ function openPetRoom(studentId){
   $("#scene").className = "indoor";
   $("#outBtn").innerHTML = "🌳 Go Outside";
   $("#petTitle").textContent = `${cur.name}'s ${cur.pet.name}`;
-  P = makeActor($("#petActor"), cur.pet, cur.pet.name, false);
+  P = makeActor($("#petActor"), cur.pet, cur.pet.name, false, cur.id, wornItems(cur));
   P.x = 30 + Math.random()*40; P.tx = P.x;
   placeActor(P);
   $("#ball").style.display = "none"; ballOn = false; vBall.on = false;
   $("#treats").style.display = "none";
   setBowl(false); lastInteract = Date.now();
   hideBubble();
-  renderFocusInRoom(); updateMeters(); checkVisit(true);
+  quizActive = false;
+  renderFocusInRoom(); updateMeters(); renderSceneItems(); checkVisit(true);
   show("pet");
-  setTimeout(()=> showBubble(`Hi, ${esc(cur.name)}! I'm <b>${esc(cur.pet.name)}</b>! 💗`, 2600), 400);
+  const greetName = cur.name, greetPet = cur.pet.name;
+  setTimeout(()=> showBubble(`Hi, ${esc(greetName)}! I'm <b>${esc(greetPet)}</b>! 💗`, 2600), 400);
+}
+function blockTap(v){
+  if(!quizActive) return;
+  const f = focusDisplay();
+  if(v === S.settings.focus){
+    quizActive = false; $("#blocksRow").classList.remove("quiz");
+    bouncePet(); SFX.sparkle(); hearts(2);
+    showBubble(`You found it! 🎉<br>${esc(f.phrase)}`, 2800);
+  } else {
+    SFX.sniff();
+    showBubble(`Try again! Find the <b>${esc(f.text)}</b>! 🧱`, 2200);
+  }
+}
+function startQuiz(){
+  if(!cur) return;
+  if($("#scene").className !== "indoor") toggleOutside();
+  quizActive = true; $("#blocksRow").classList.add("quiz");
+  const f = focusDisplay();
+  showBubble(`Find the <b>${esc(f.text)}</b>!<br>Tap the right block! 🧱`, 4000);
+  SFX.pop();
 }
 function renderFocusInRoom(){
   const f = focusDisplay(), t = S.settings.focusType;
@@ -852,16 +1030,39 @@ function renderFocusInRoom(){
   if(t === "shape" || t === "color") g.querySelector("svg,span").style.width = "60px";
   $("#posterCap").textContent = f.cap;
   const ds = distractors();
-  const vals = [S.settings.focus, ds[0], ds[1]].filter(x => x !== undefined);
+  const vals = [S.settings.focus, ds[0], ds[1]].filter(x => x !== undefined).sort(()=> Math.random() - .5);
   const cols = ["#ef476f", "#118ab2", "#06d6a0"];
   $("#blocksRow").innerHTML = vals.map((v,i) =>
-    `<div class="block" style="background:${cols[i%3]}">${t==="letter"||t==="number"||t==="word" ? esc(v) : glyphHTML(v, t)}</div>`).join("");
+    `<div class="block" data-v="${esc(v)}" style="background:${cols[i%3]}">${t==="letter"||t==="number"||t==="word" ? esc(v) : glyphHTML(v, t)}</div>`).join("");
+  $("#blocksRow").classList.toggle("quiz", quizActive);
+  $("#blocksRow").querySelectorAll(".block").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); blockTap(b.dataset.v); }));
 }
 function updateMeters(){
   if(!cur) return;
   $("#foodMeter").style.width = cur.hunger + "%";
   $("#loveMeter").style.width = cur.happiness + "%";
   $("#starCount").textContent = cur.stars;
+  renderGoalChip();
+}
+function totalStars(){ return S.students.reduce((a, s) => a + (s.stars || 0), 0); }
+function renderGoalChip(){
+  const chip = $("#goalChip"); if(!chip) return;
+  const goal = S.settings.classGoal || 100;
+  $("#goalText").textContent = `${totalStars()}/${goal} ⭐`;
+  chip.style.display = "";
+}
+function renderGoal(){
+  const tot = totalStars(); const goal = S.settings.classGoal || 100;
+  const pct = Math.min(100, Math.round(tot / goal * 100));
+  const fill = $("#goalBarFill"); if(fill) fill.style.width = pct + "%";
+  const t2 = $("#goalText2"); if(t2) t2.textContent = `⭐ ${tot} / ${goal} — ${S.settings.classGoalLabel || "Class Party"}`;
+  const ban = $("#goalBanner");
+  if(ban){
+    if(tot >= goal){ ban.style.display = "block"; ban.textContent = `🎉 Class goal reached! Time for ${S.settings.classGoalLabel || "a celebration"}!`; }
+    else ban.style.display = "none";
+  }
+  const gi = $("#goalInput"); if(gi && document.activeElement !== gi) gi.value = goal;
+  const gl = $("#goalLabelInput"); if(gl && document.activeElement !== gl) gl.value = S.settings.classGoalLabel || "";
 }
 
 /* ---------- bubble, hearts, zzz ---------- */
@@ -875,6 +1076,19 @@ function showBubble(html, dur){
   bubbleTimer = setTimeout(hideBubble, dur || 3000);
 }
 function hideBubble(){ const b = $("#bubble"); if(b) b.style.display = "none"; }
+let toastTimer = null;
+function showToast(msg){
+  const t = $("#toast"); if(!t) return;
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=> t.classList.remove("show"), 1900);
+}
+function awardStars(n, why){
+  if(!cur) return;
+  cur.stars += n; updateMeters(); saveState();
+  showToast(`⭐ +${n} star${n > 1 ? "s" : ""}! ${why || ""}`.trim());
+  SFX.sparkle();
+}
+function wornItems(st){ return (st.items || []).filter(id => { const it = SHOP_ITEMS.find(x => x.id === id); return it && it.where === "worn"; }); }
 function spawnFloat(txt, cls, x, y){
   const s = document.createElement("div");
   s.className = cls; s.textContent = txt;
@@ -965,7 +1179,7 @@ function initSceneTouch(){
   const sc = $("#scene");
   sc.addEventListener("pointerdown", e => {
     audio(); lastInteract = Date.now();
-    if(e.target.closest("#treats") || e.target.closest("#bubble")) return;
+    if(e.target.closest("#treats") || e.target.closest("#bubble") || e.target.closest(".block")) return;
     if(P.mode === "nap") return;
     const onPet = overPet(e, P);
     touch = { onPet, t0: Date.now(), rub: 0, lastX: e.clientX, lastY: e.clientY, moved: false };
@@ -1055,6 +1269,7 @@ function feedChoice(btn, ok){
   setBowl(true); SFX.pop();
   showBubble("Yum, that's the one!<br>Watch me eat! 🥣", 1800);
   P.tx = 79; P.ty = 93; P.facing = 1;
+  const fedStudent = cur;
   let ate = false;
   const eatNow = ()=>{
     if(ate) return; ate = true;
@@ -1064,8 +1279,9 @@ function feedChoice(btn, ok){
     setTimeout(()=>{
       P.el.classList.remove("eating");
       setBowl(false);
-      cur.hunger = clamp(cur.hunger + 32, 0, 100);
-      cur.stars += 1; petHappy(6); updateMeters(); saveState();
+      fedStudent.hunger = clamp(fedStudent.hunger + 32, 0, 100);
+      fedStudent.stars += 1; petHappy(6); updateMeters(); saveState();
+      showToast("⭐ +1 star for eating!");
       SFX.sparkle(); hearts(2); bouncePet();
       const f = focusDisplay();
       showBubble(`All gone! ⭐<br>${esc(f.phrase)}`, 2800);
@@ -1085,7 +1301,7 @@ function togglePlay(){
   vBall.on = false; // the student's own game takes over from visit play
   if(ballOn){ hideBall(); return; }
   $("#treats").style.display = "none"; feeding = false;
-  ballOn = true;
+  ballOn = true; if(P) P.ballStar = false;
   const b = $("#ball"); b.textContent = "⚽"; b.style.display = "block";
   moveBall(20 + Math.random()*55, 90);
   showBubble("⚽ Throw the ball!<br>Tap where it should go!", 2600);
@@ -1096,6 +1312,7 @@ function moveBall(x, y){
   b.style.left = x + "%"; b.style.top = y + "%";
   P.tx = x; P.ty = 92;
   setTimeout(()=>{ if(ballOn){ bouncePet(); SFX.pop();
+    if(P && !P.ballStar){ P.ballStar = true; awardStars(1, "for playing!"); }
     if(Math.random() < .5){ const f = focusDisplay(); showBubble(`Got it! ⚽<br>${esc(f.phrase)}`, 2100); }
     petHappy(2);
   }}, 650);
@@ -1109,6 +1326,7 @@ function toggleOutside(){
   const goingOut = sc.className !== "outdoor";
   sc.className = goingOut ? "outdoor" : "indoor";
   $("#outBtn").innerHTML = goingOut ? "🏠 Go Inside" : "🌳 Go Outside";
+  renderSceneItems();
   if(goingOut){
     const b = $("#bfly"); b.style.left = "30%"; b.style.top = "26%";
     showBubble("Outside! 🌳<br>Tap the grass and I'll run there!", 2800);
@@ -1187,7 +1405,7 @@ function checkVisit(first){
     const guest = S.students.find(s => s.id === v.guestId);
     if(guest && guest.pet){
       if(!G){
-        G = makeActor(ga, guest.pet, guest.pet.name, true);
+        G = makeActor(ga, guest.pet, guest.pet.name, true, guest.id || guest.pet.name, wornItems(guest));
         G.x = 88; G.tx = 70; G.y = 90; G.ty = 90; placeActor(G);
         banner.textContent = `🎉 ${guest.pet.name} came to play with ${cur.pet.name}!`;
         banner.style.display = "block";
@@ -1206,16 +1424,91 @@ async function pollSettings(){
       const oldFocus = S.settings.focusType + S.settings.focus;
       S.settings = data.settings;
       if(oldFocus !== S.settings.focusType + S.settings.focus) renderFocusInRoom();
+      updateMeters();
       checkVisit(false);
     }
   }catch(e){}
 }
 
 /* =====================================================================
+   SHOP + TRICKS + CLASS GOAL
+   ===================================================================== */
+function renderSceneItems(){
+  const d = $("#decor"); if(!d || !cur) return;
+  const indoor = $("#scene").className === "indoor";
+  let html = "";
+  (cur.items || []).forEach(id => {
+    const it = SHOP_ITEMS.find(x => x.id === id); if(!it) return;
+    if(it.where === "indoor" && indoor && id === "bed") html += `<span class="decor-item" style="left:10%;bottom:20%;">🛏️</span>`;
+    if(it.where === "outdoor" && !indoor){
+      if(id === "doghouse") html += `<span class="decor-item" style="right:6%;bottom:18%;">🏠</span>`;
+      if(id === "slide") html += `<span class="decor-item" style="left:6%;bottom:22%;">🛝</span>`;
+      if(id === "ball") html += `<span class="decor-item" style="left:42%;bottom:14%;">🎾</span>`;
+    }
+  });
+  d.innerHTML = html;
+  if(P && P.flip) P.flip.innerHTML = petSVG(cur.pet.type, cur.pet.color, cur.pet.pattern || null, cur.id, wornItems(cur));
+}
+function renderShop(){
+  const rows = $("#shopRows"); if(!rows || !cur) return; rows.innerHTML = "";
+  SHOP_ITEMS.forEach(it => {
+    const owned = (cur.items || []).includes(it.id);
+    const row = document.createElement("div"); row.className = "shoprow";
+    row.innerHTML = `<span style="font-size:28px;">${it.emoji}</span><span class="nm">${esc(it.name)}</span><span>⭐ ${it.price}</span>`;
+    const b = document.createElement("button");
+    b.textContent = owned ? "Owned ✓" : "Buy";
+    b.disabled = owned || cur.stars < it.price;
+    b.addEventListener("click", ()=> buyShop(it.id));
+    row.appendChild(b); rows.appendChild(row);
+  });
+}
+function buyShop(id){
+  const it = SHOP_ITEMS.find(x => x.id === id); if(!it || !cur) return;
+  if((cur.items || []).includes(id)) return;
+  if(cur.stars < it.price){ showToast(`You need ${it.price - cur.stars} more ⭐!`); SFX.sniff(); return; }
+  cur.stars -= it.price; cur.items = cur.items || []; cur.items.push(id);
+  updateMeters(); saveState(); SFX.sparkle();
+  showToast(`You bought the ${it.name}! ${it.emoji}`);
+  renderShop(); renderSceneItems();
+}
+function renderTricks(){
+  const rows = $("#trickRows"); if(!rows || !cur) return; rows.innerHTML = "";
+  TRICKS.forEach(t => {
+    const un = cur.stars >= t.stars;
+    const row = document.createElement("div"); row.className = "trickrow";
+    row.innerHTML = `<span style="font-size:28px;">${t.emoji}</span><span class="nm">${esc(t.name)}</span>`;
+    const b = document.createElement("button");
+    b.textContent = un ? "Do it!" : `🔒 ${t.stars} ⭐`;
+    b.disabled = !un;
+    b.addEventListener("click", ()=> doTrick(t.id));
+    row.appendChild(b); rows.appendChild(row);
+  });
+}
+function doTrick(id){
+  if(!P) return;
+  if(id === "roll"){
+    P.el.classList.remove("rolling"); void P.el.offsetWidth; P.el.classList.add("rolling");
+    setTimeout(()=> P.el.classList.remove("rolling"), 850);
+    SFX.boing(); showBubble("Wheee! 🔄", 2000);
+  } else {
+    const h = $("#hoop"); h.style.display = "block";
+    P.el.classList.remove("jumping"); void P.el.offsetWidth; P.el.classList.add("jumping");
+    SFX.chirp(); showBubble("Through the hoop! 🎪", 2200);
+    setTimeout(()=>{ h.style.display = "none"; P.el.classList.remove("jumping"); }, 1000);
+  }
+}
+function togglePanel(id){
+  ["shopPanel", "tricksPanel"].forEach(p => { if(p !== id) $("#" + p).classList.remove("open"); });
+  const el = $("#" + id); el.classList.toggle("open");
+  if(id === "shopPanel" && el.classList.contains("open")) renderShop();
+  if(id === "tricksPanel" && el.classList.contains("open")) renderTricks();
+}
+
+/* =====================================================================
    TEACHER DASHBOARD
    ===================================================================== */
 function renderTeacher(){
-  renderFocusControls(); renderRoster(); renderPlayControls(); renderLinks();
+  renderFocusControls(); renderRoster(); renderPlayControls(); renderLinks(); renderGoal();
 }
 function appBase(){
   if(S.settings.appBase) return S.settings.appBase.replace(/[?#].*$/, "");
@@ -1257,7 +1550,7 @@ function bulkAddStudents(){
   names.forEach(nm => {
     if(existing.has(nm.toLowerCase())) return;
     existing.add(nm.toLowerCase());
-    S.students.push({ id: uid(), name: nm, pet: null, hunger: 75, happiness: 80, stars: 0 });
+    S.students.push({ id: uid(), name: nm, pet: null, hunger: 75, happiness: 80, stars: 0, items: [] });
     added++;
   });
   $("#bulkNames").value = "";
@@ -1326,18 +1619,20 @@ function renderRoster(){
   S.students.forEach(st => {
     const card = document.createElement("div"); card.className = "rcard";
     const head = st.pet
-      ? `${petSVG(st.pet.type, st.pet.color)}<div><div class="rname">${esc(st.name)}</div><div class="rpet">${esc(st.pet.name)} the ${SPECIES[st.pet.type].label} · ⭐ ${st.stars}</div></div>`
+      ? `${petSVG(st.pet.type, st.pet.color, st.pet.pattern || null, st.id, wornItems(st))}<div><div class="rname">${esc(st.name)}</div><div class="rpet">${esc(st.pet.name)} the ${SPECIES[st.pet.type].label} · ⭐ ${st.stars}</div></div>`
       : `<div style="font-size:40px;">🥚</div><div><div class="rname">${esc(st.name)}</div><div class="rpet">No pet yet</div></div>`;
     card.innerHTML = `<div class="rhead">${head}</div>` + (st.pet ? `
       <div style="font-size:12px;margin-top:6px;">🍖</div><div class="mini-meter"><div style="width:${st.hunger}%;background:#ff8a3d;"></div></div>
       <div style="font-size:12px;">💗</div><div class="mini-meter"><div style="width:${st.happiness}%;background:#ec5f92;"></div></div>` : "") + `
       <div class="rbtns">
         ${st.pet ? `<button data-act="visit">Visit pet</button>` : `<button data-act="create">Make pet</button>`}
+        <button data-act="star">⭐ +1</button>
         ${st.pet ? `<button data-act="newpet">New pet</button>` : ""}
         <button data-act="remove" class="danger">Remove</button>
       </div>`;
     card.querySelectorAll("button").forEach(b => b.addEventListener("click", ()=>{
       const act = b.dataset.act;
+      if(act === "star"){ st.stars = (st.stars || 0) + 1; saveState(); renderTeacher(); renderHome(); showToast(`⭐ +1 star for ${st.name}!`); }
       if(act === "visit"){ openPetRoom(st.id); }
       if(act === "create"){ startCreate(st.id); }
       if(act === "newpet"){ if(confirm(`Give ${st.name} a brand-new pet? Their current pet will be cleared.`)){ st.pet = null; st.stars = 0; saveState(); renderTeacher(); renderHome(); } }
@@ -1366,8 +1661,8 @@ function startParade(){
   const b = S.students.find(s => s.id === $("#paradeB").value);
   if(!a || !b || !a.pet || !b.pet){ show("teacher"); return; }
   $("#paradeNames").textContent = `${a.pet.name} & ${b.pet.name}`;
-  const A1 = makeActor($("#paradeA1"), a.pet, a.pet.name, false);
-  const A2 = makeActor($("#paradeA2"), b.pet, b.pet.name, false);
+  const A1 = makeActor($("#paradeA1"), a.pet, a.pet.name, false, a.id, wornItems(a));
+  const A2 = makeActor($("#paradeA2"), b.pet, b.pet.name, false, b.id, wornItems(b));
   A1.x = 26; A1.y = 92; A1.tx = 26; A1.ty = 92;
   A2.x = 74; A2.y = 92; A2.tx = 74; A2.ty = 92;
   A1.speed = 34; A2.speed = 34;
@@ -1445,6 +1740,13 @@ function wire(){
   $("#playBtn").addEventListener("click", ()=>{ audio(); togglePlay(); });
   $("#outBtn").addEventListener("click", ()=>{ audio(); SFX.pop(); toggleOutside(); });
   $("#napBtn").addEventListener("click", ()=>{ audio(); napTime(); });
+  $("#shopBtn").addEventListener("click", ()=>{ audio(); togglePanel("shopPanel"); });
+  $("#tricksBtn").addEventListener("click", ()=>{ audio(); togglePanel("tricksPanel"); });
+  $("#quizBtn").addEventListener("click", ()=>{ audio(); startQuiz(); });
+  $("#shopClose").addEventListener("click", ()=> $("#shopPanel").classList.remove("open"));
+  $("#tricksClose").addEventListener("click", ()=> $("#tricksPanel").classList.remove("open"));
+  $("#goalInput").addEventListener("change", e => { S.settings.classGoal = Math.max(1, parseInt(e.target.value, 10) || 100); saveState(); renderGoal(); });
+  $("#goalLabelInput").addEventListener("change", e => { S.settings.classGoalLabel = e.target.value.trim() || "Class Party"; saveState(); renderGoal(); });
   $("#animalNext").addEventListener("click", ()=>{ SFX.pop(); showStep(2); });
   $("#colorBack").addEventListener("click", ()=> showStep(1));
   $("#colorNext").addEventListener("click", ()=>{ SFX.pop(); showStep(3); });
@@ -1468,7 +1770,7 @@ function wire(){
   $("#visitBtn").addEventListener("click", sendVisit);
   $("#addStudentBtn").addEventListener("click", ()=>{
     const nm = $("#newStudentName").value.trim(); if(!nm) return;
-    S.students.push({ id: uid(), name: nm, pet: null, hunger: 75, happiness: 80, stars: 0 });
+    S.students.push({ id: uid(), name: nm, pet: null, hunger: 75, happiness: 80, stars: 0, items: [] });
     $("#newStudentName").value = "";
     saveState(); renderTeacher(); renderHome();
   });
