@@ -289,7 +289,7 @@
     <p class="sub">Tap your name to visit your pet!</p>
     <div class="namegrid" id="nameGrid"></div>
     <div class="center" style="margin-top:26px;">
-      <button class="bigbtn gray small" id="toTeacherBtn">🍎 Teacher</button>
+      <p class="note">Teachers: use your dashboard link from the Student Links panel.</p>
     </div>
   </div>
 </div>
@@ -418,7 +418,7 @@
 
     <div class="panel">
       <h3>🎯 Class Goal</h3>
-      <p class="note" style="margin:0 0 8px;">All the class's stars add up to one goal — pick something fun to work toward together!</p>
+      <p class="note" style="margin:0 0 8px;">All the class's stars add up to one goal — pick something fun to work toward together! The goal counts every star ever earned, so buying things in the shop doesn't lower it.</p>
       <div class="rowflex">
         <span style="font-weight:bold;">Goal:</span>
         <input class="textin" id="goalInput" type="number" min="1" style="width:100px;">
@@ -468,6 +468,7 @@
         <input class="textin" id="newStudentName" placeholder="New student's name">
         <button class="bigbtn green small" id="addStudentBtn">＋ Add Student</button>
         <button class="bigbtn gray small" id="resetDemoBtn">Reset Demo Data</button>
+        <button class="bigbtn gray small" id="newYearBtn">🗓️ Start new school year</button>
       </div>
       <p class="note">Tap “Visit” on a card to open that student's pet room on this screen.
       “New pet” clears a student's pet so they can create a new one.</p>
@@ -538,6 +539,7 @@ const SFX = {
   purrTick(){ tone(58, .09, "sine", .16); tone(46, .08, "triangle", .12, .02); },
   boing(){ tone(300, .2, "sine", .1, 0, 90); tone(500, .18, "sine", .08, .05, 950); },
   sniff(){ tone(300, .06, "triangle", .05, 0, 380); tone(300, .06, "triangle", .05, .09, 380); },
+  grumble(){ tone(85, .3, "sine", .12, 0, 55); tone(70, .35, "sine", .1, .25, 48); },
   snore(){ tone(120, .4, "sine", .05, 0, 80); },
 };
 
@@ -750,7 +752,7 @@ const CONNECTED = !!GAS_URL;
 function uid(){ return "s" + Math.random().toString(36).slice(2, 9); }
 function demoState(){
   const mk = (name, pet) => ({ id: uid(), name, pet: pet || null,
-    hunger: 70, happiness: 75, stars: 0, items: [] });
+    hunger: 70, happiness: 75, stars: 0, earned: 0, items: [] });
   return {
     settings: { focusType:"letter", focus:"B", visit:null, customWords:[], appBase:"", classGoal:100, classGoalLabel:"Class Party" },
     students: [
@@ -791,13 +793,44 @@ async function loadState(){
   S.students.forEach(st => {
     if(st.pet && st.pet.pattern === undefined) st.pet.pattern = null;
     if(!Array.isArray(st.items)) st.items = [];
+    if(st.earned === undefined || st.earned === null) st.earned = st.stars || 0;
   });
 }
 let saveTimer = null;
+/* Room star sync: the room remembers the star counts the sheet last had
+   (roomBase). A room save sends only that student plus roomBase, and the
+   script applies just the change since roomBase — so a teacher star given
+   from the dashboard, or a classmate's new pet, can never be overwritten
+   by this room's older copy. lastStarChange / lastSavePost guard the
+   poll below so it never reverts a change that hasn't reached the sheet
+   yet. */
+let roomBase = null;
+let lastStarChange = 0;
+let lastSavePost = 0;
+function earnedOf(st){ return (st.earned === undefined || st.earned === null) ? (st.stars || 0) : st.earned; }
 function saveState(){
   if(!CONNECTED){ localStorage.setItem(LS_KEY, JSON.stringify(S)); return; }
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(()=>{ gasPost({ action:"saveState", state:S }).catch(()=>{}); }, 350);
+  saveTimer = setTimeout(()=>{
+    if(currentView === "pet" && cur){
+      lastSavePost = Date.now();
+      gasPost({ action:"saveRoom", student: cur, base: roomBase }).catch(()=>{});
+      roomBase = { earned: earnedOf(cur), stars: cur.stars || 0 };
+      delete cur._createdPet;
+    } else if(currentView === "create" && wiz){
+      const st = S.students.find(s => s.id === wiz.studentId);
+      if(st){
+        lastSavePost = Date.now();
+        gasPost({ action:"saveRoom", student: st, base: roomBase }).catch(()=>{});
+        roomBase = { earned: earnedOf(st), stars: st.stars || 0 };
+        delete st._createdPet;
+      } else {
+        gasPost({ action:"saveState", state:S }).catch(()=>{});
+      }
+    } else {
+      gasPost({ action:"saveState", state:S }).catch(()=>{});
+    }
+  }, 350);
 }
 function setSync(txt){ const el = $("#syncStatus"); if(el) el.textContent = txt; }
 
@@ -822,6 +855,7 @@ async function gasPost(obj){
 /* ---------------- router ---------------- */
 let currentView = "home";
 function show(view){
+  if(studentMode && (view === "home" || view === "teacher" || view === "parade")) return;
   currentView = view;
   document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
   $("#view-" + view).classList.add("active");
@@ -853,6 +887,8 @@ function renderHome(){
 let wiz = null;
 function startCreate(studentId){
   wiz = { studentId, type:"dog", color: SPECIES.dog.def, pattern:null, step:1 };
+  const st0 = S.students.find(s => s.id === studentId);
+  if(st0) roomBase = { earned: earnedOf(st0), stars: st0.stars || 0 };
   $("#createSub").textContent = "For " + (S.students.find(s=>s.id===studentId)||{}).name;
   renderAnimalRow(); showStep(1); show("create");
 }
@@ -917,7 +953,8 @@ function finishCreate(){
   const st = S.students.find(s => s.id === wiz.studentId); if(!st) return;
   const nm = $("#petNameInput").value.trim() || "Buddy";
   st.pet = { type: wiz.type, color: wiz.color, name: nm, pattern: wiz.pattern || null };
-  st.hunger = 75; st.happiness = 85; st.stars = 0; st.items = [];
+  st.hunger = 75; st.happiness = 85; st.stars = 0; st.earned = 0; st.items = []; st.worn = [];
+  st._createdPet = true; // lets the sheet accept this pet even after a teacher reset
   saveState(); SFX.sparkle();
   openPetRoom(st.id);
   setTimeout(()=> showBubble(`Hi! I'm <b>${esc(nm)}</b>!<br>Tap the floor and I'll come to you.<br>Rub my fur to pet me! 💗`, 5200), 350);
@@ -987,6 +1024,7 @@ function stepActor(a, dt){
 
 function openPetRoom(studentId){
   cur = S.students.find(s => s.id === studentId); if(!cur || !cur.pet) return;
+  roomBase = { earned: earnedOf(cur), stars: cur.stars || 0 };
   $("#scene").className = "indoor";
   $("#outBtn").innerHTML = "🌳 Go Outside";
   $("#petTitle").textContent = `${cur.name}'s ${cur.pet.name}`;
@@ -1001,7 +1039,7 @@ function openPetRoom(studentId){
   renderFocusInRoom(); updateMeters(); renderSceneItems(); checkVisit(true);
   show("pet");
   const greetName = cur.name, greetPet = cur.pet.name;
-  setTimeout(()=> showBubble(`Hi, ${esc(greetName)}! I'm <b>${esc(greetPet)}</b>! 💗`, 2600), 400);
+  setTimeout(()=> showBubble(`Hi, ${esc(greetName)}! I'm <b>${esc(greetPet)}</b>! 💗`, 5500), 400);
 }
 function blockTap(v){
   if(!quizActive) return;
@@ -1045,14 +1083,20 @@ function updateMeters(){
   renderGoalChip();
 }
 function totalStars(){ return S.students.reduce((a, s) => a + (s.stars || 0), 0); }
+/* Class-goal progress counts every star ever earned. The shop balance
+   (st.stars) goes down when a student buys something; the goal must not. */
+function totalEarned(){ return S.students.reduce((a, s) => a + earnedOf(s), 0); }
 function renderGoalChip(){
   const chip = $("#goalChip"); if(!chip) return;
   const goal = S.settings.classGoal || 100;
-  $("#goalText").textContent = `${totalStars()}/${goal} ⭐`;
+  $("#goalText").textContent = `${totalEarned()}/${goal} ⭐`;
   chip.style.display = "";
+  chip.style.cursor = "pointer";
+  chip.title = "Tap to see the class goal";
+  chip.onclick = ()=>{ if(P) showBubble(`Class goal: ${goal} ⭐ for ${S.settings.classGoalLabel || "Class Party"} — we're at ${totalEarned()}!`, 5500); };
 }
 function renderGoal(){
-  const tot = totalStars(); const goal = S.settings.classGoal || 100;
+  const tot = totalEarned(); const goal = S.settings.classGoal || 100;
   const pct = Math.min(100, Math.round(tot / goal * 100));
   const fill = $("#goalBarFill"); if(fill) fill.style.width = pct + "%";
   const t2 = $("#goalText2"); if(t2) t2.textContent = `⭐ ${tot} / ${goal} — ${S.settings.classGoalLabel || "Class Party"}`;
@@ -1073,7 +1117,7 @@ function showBubble(html, dur){
   b.style.left = clamp(P.x - 6, 4, 62) + "%";
   b.style.top = "calc(" + clamp(P.y - 46, 8, 60) + "% )";
   clearTimeout(bubbleTimer);
-  bubbleTimer = setTimeout(hideBubble, dur || 3000);
+  bubbleTimer = setTimeout(hideBubble, dur || 5500);
 }
 function hideBubble(){ const b = $("#bubble"); if(b) b.style.display = "none"; }
 let toastTimer = null;
@@ -1084,11 +1128,23 @@ function showToast(msg){
 }
 function awardStars(n, why){
   if(!cur) return;
-  cur.stars += n; updateMeters(); saveState();
+  cur.stars += n; cur.earned = earnedOf(cur) + n; lastStarChange = Date.now();
+  updateMeters(); saveState();
   showToast(`⭐ +${n} star${n > 1 ? "s" : ""}! ${why || ""}`.trim());
   SFX.sparkle();
 }
-function wornItems(st){ return (st.items || []).filter(id => { const it = SHOP_ITEMS.find(x => x.id === id); return it && it.where === "worn"; }); }
+function wornItems(st){
+  if(Array.isArray(st.worn)) return st.worn.filter(id => { const it = SHOP_ITEMS.find(x => x.id === id); return it && it.where === "worn"; });
+  return (st.items || []).filter(id => { const it = SHOP_ITEMS.find(x => x.id === id); return it && it.where === "worn"; });
+}
+function toggleWorn(id){
+  if(!cur) return;
+  if(!Array.isArray(cur.worn)) cur.worn = wornItems(cur);
+  const i = cur.worn.indexOf(id);
+  if(i >= 0) cur.worn.splice(i, 1); else cur.worn.push(id);
+  updateMeters(); saveState(); SFX.pop();
+  renderShop(); renderSceneItems();
+}
 function spawnFloat(txt, cls, x, y){
   const s = document.createElement("div");
   s.className = cls; s.textContent = txt;
@@ -1136,7 +1192,7 @@ function idleBehavior(){
   const f = focusDisplay();
   const r = Math.random();
   if(cur.hunger < 42){
-    showBubble(`I'm hungry! 🍎<br>Can I have a treat?`, 3200);
+    showBubble(`I'm hungry! 🍎<br>Can I have a treat?`, 5500); SFX.grumble();
     P.tx = 82; P.ty = 90;
   } else if(r < 0.45){
     showBubble(`<span class="huge">${f.text && S.settings.focusType !== "shape" && S.settings.focusType !== "color" ? esc(f.big || f.text) : ""}</span>${(S.settings.focusType==="shape"||S.settings.focusType==="color") ? glyphHTML(S.settings.focus, S.settings.focusType) : ""}<br>${esc(f.phrase)}`, 3000);
@@ -1247,10 +1303,10 @@ function startFeed(){
   box.style.display = "flex";
   feeding = true;
   setTimeout(()=>{
-    if(t === "letter") showBubble(`I'm hungry for…<br><span class="huge">${esc(S.settings.focus)}</span><br>${esc(f.phrase)}`, 3600);
-    else if(t === "shape") showBubble(`I'm hungry for a…<br>${glyphHTML(S.settings.focus, t)}<br>${esc(f.phrase)}`, 3600);
-    else if(t === "color") showBubble(`I'm hungry for…<br>${glyphHTML(S.settings.focus, t)}<br>something <b>${esc(S.settings.focus)}</b>!`, 3600);
-    else showBubble(`I'm hungry for…<br><span class="huge">${esc(f.text)}</span>`, 3600);
+    if(t === "letter") showBubble(`I'm hungry for…<br><span class="huge">${esc(S.settings.focus)}</span><br>${esc(f.phrase)}`, 5500);
+    else if(t === "shape") showBubble(`I'm hungry for a…<br>${glyphHTML(S.settings.focus, t)}<br>${esc(f.phrase)}`, 5500);
+    else if(t === "color") showBubble(`I'm hungry for…<br>${glyphHTML(S.settings.focus, t)}<br>something <b>${esc(S.settings.focus)}</b>!`, 5500);
+    else showBubble(`I'm hungry for…<br><span class="huge">${esc(f.text)}</span>`, 5500);
   }, 500);
   SFX.pop();
 }
@@ -1280,7 +1336,8 @@ function feedChoice(btn, ok){
       P.el.classList.remove("eating");
       setBowl(false);
       fedStudent.hunger = clamp(fedStudent.hunger + 32, 0, 100);
-      fedStudent.stars += 1; petHappy(6); updateMeters(); saveState();
+      fedStudent.stars += 1; fedStudent.earned = earnedOf(fedStudent) + 1; lastStarChange = Date.now();
+      petHappy(6); updateMeters(); saveState();
       showToast("⭐ +1 star for eating!");
       SFX.sparkle(); hearts(2); bouncePet();
       const f = focusDisplay();
@@ -1427,6 +1484,32 @@ async function pollSettings(){
       updateMeters();
       checkVisit(false);
     }
+    /* Star adoption: the room re-reads its own student every poll. If the
+       teacher gave a star (or reset the pet) since this room loaded, the
+       room adopts the sheet's counts — and a star increase pops a
+       "Good job!" toast on the student's screen. Recent local changes
+       and in-flight saves are left alone so the poll never reverts them.
+       If the teacher cleared this pet, the room heads to the creation
+       wizard instead of showing a pet that no longer exists. */
+    if(cur && data && data.students){
+      const fresh = data.students.find(s => s.id === cur.id);
+      if(fresh && Date.now() - Math.max(lastStarChange, lastSavePost) >= 3000){
+        const fEarned = (fresh.earned === undefined || fresh.earned === null) ? (fresh.stars || 0) : fresh.earned;
+        const fStars = fresh.stars || 0;
+        if(fEarned !== earnedOf(cur) || fStars !== (cur.stars || 0)){
+          const gained = fEarned > earnedOf(cur);
+          cur.earned = fEarned; cur.stars = fStars;
+          roomBase = { earned: fEarned, stars: fStars };
+          updateMeters();
+          if(gained){ showToast(`⭐ Good job, ${cur.name}! You earned a star!`); SFX.sparkle(); }
+        }
+        if(fresh.pet === null && cur.pet){
+          cur.pet = null; cur.items = []; cur.worn = [];
+          showToast(`Your teacher gave you a brand-new pet!`);
+          startCreate(cur.id);
+        }
+      }
+    }
   }catch(e){}
 }
 
@@ -1456,9 +1539,11 @@ function renderShop(){
     const row = document.createElement("div"); row.className = "shoprow";
     row.innerHTML = `<span style="font-size:28px;">${it.emoji}</span><span class="nm">${esc(it.name)}</span><span>⭐ ${it.price}</span>`;
     const b = document.createElement("button");
-    b.textContent = owned ? "Owned ✓" : "Buy";
-    b.disabled = owned || cur.stars < it.price;
-    b.addEventListener("click", ()=> buyShop(it.id));
+    const isWornItem = it.where === "worn";
+    const currentlyWorn = isWornItem && owned && wornItems(cur).includes(it.id);
+    b.textContent = !owned ? "Buy" : isWornItem ? (currentlyWorn ? "Take off" : "Put on") : "Owned ✓";
+    b.disabled = !owned && cur.stars < it.price;
+    b.addEventListener("click", ()=> owned && isWornItem ? toggleWorn(it.id) : buyShop(it.id));
     row.appendChild(b); rows.appendChild(row);
   });
 }
@@ -1467,6 +1552,8 @@ function buyShop(id){
   if((cur.items || []).includes(id)) return;
   if(cur.stars < it.price){ showToast(`You need ${it.price - cur.stars} more ⭐!`); SFX.sniff(); return; }
   cur.stars -= it.price; cur.items = cur.items || []; cur.items.push(id);
+  if(it.where === "worn" && Array.isArray(cur.worn)) cur.worn.push(id);
+  lastStarChange = Date.now();
   updateMeters(); saveState(); SFX.sparkle();
   showToast(`You bought the ${it.name}! ${it.emoji}`);
   renderShop(); renderSceneItems();
@@ -1474,7 +1561,7 @@ function buyShop(id){
 function renderTricks(){
   const rows = $("#trickRows"); if(!rows || !cur) return; rows.innerHTML = "";
   TRICKS.forEach(t => {
-    const un = cur.stars >= t.stars;
+    const un = earnedOf(cur) >= t.stars;
     const row = document.createElement("div"); row.className = "trickrow";
     row.innerHTML = `<span style="font-size:28px;">${t.emoji}</span><span class="nm">${esc(t.name)}</span>`;
     const b = document.createElement("button");
@@ -1507,6 +1594,44 @@ function togglePanel(id){
 /* =====================================================================
    TEACHER DASHBOARD
    ===================================================================== */
+/* Teacher star grant: the old path (bump the dashboard's copy, save the
+   whole roster) is exactly what lost Kelly's stars — an open pet room's
+   auto-save overwrote the grant within seconds, every time. Now the
+   dashboard increments the sheet directly (addStar) and then re-reads
+   the sheet to confirm, so the number on screen is the number that
+   actually stuck. */
+async function giveStar(st){
+  if(!CONNECTED){
+    st.stars = (st.stars || 0) + 1; st.earned = earnedOf(st) + 1;
+    saveState(); renderTeacher(); renderHome();
+    showToast(`⭐ +1 star for ${st.name}!`);
+    return;
+  }
+  const before = earnedOf(st);
+  try{
+    await gasPost({ action:"addStar", id: st.id, delta: 1 });
+    let confirmed = false;
+    for(let attempt = 0; attempt < 3 && !confirmed; attempt++){
+      await new Promise(r => setTimeout(r, attempt === 0 ? 1200 : 1500));
+      try{
+        const data = await gasGet();
+        if(data && data.students){
+          data.students.forEach(fs => {
+            const ls = S.students.find(s => s.id === fs.id);
+            if(ls){ ls.stars = fs.stars || 0; ls.earned = (fs.earned === undefined || fs.earned === null) ? (fs.stars || 0) : fs.earned; }
+          });
+          const now = S.students.find(s => s.id === st.id);
+          if(now && earnedOf(now) > before){ confirmed = true; showToast(`⭐ +1 star for ${st.name}! (now ${now.stars} ⭐)`); }
+        }
+      }catch(e){}
+    }
+    if(!confirmed) showToast(`Star sent for ${st.name} — if the count looks off, refresh the page.`);
+    renderTeacher(); renderHome();
+  }catch(e){
+    showToast(`Couldn't reach the sheet — star for ${st.name} not sent. Try again.`);
+  }
+}
+
 function renderTeacher(){
   renderFocusControls(); renderRoster(); renderPlayControls(); renderLinks(); renderGoal();
 }
@@ -1550,7 +1675,7 @@ function bulkAddStudents(){
   names.forEach(nm => {
     if(existing.has(nm.toLowerCase())) return;
     existing.add(nm.toLowerCase());
-    S.students.push({ id: uid(), name: nm, pet: null, hunger: 75, happiness: 80, stars: 0, items: [] });
+    S.students.push({ id: uid(), name: nm, pet: null, hunger: 75, happiness: 80, stars: 0, earned: 0, items: [] });
     added++;
   });
   $("#bulkNames").value = "";
@@ -1632,11 +1757,11 @@ function renderRoster(){
       </div>`;
     card.querySelectorAll("button").forEach(b => b.addEventListener("click", ()=>{
       const act = b.dataset.act;
-      if(act === "star"){ st.stars = (st.stars || 0) + 1; saveState(); renderTeacher(); renderHome(); showToast(`⭐ +1 star for ${st.name}!`); }
+      if(act === "star"){ giveStar(st); }
       if(act === "visit"){ openPetRoom(st.id); }
       if(act === "create"){ startCreate(st.id); }
-      if(act === "newpet"){ if(confirm(`Give ${st.name} a brand-new pet? Their current pet will be cleared.`)){ st.pet = null; st.stars = 0; saveState(); renderTeacher(); renderHome(); } }
-      if(act === "remove"){ if(confirm(`Remove ${st.name} from the class list?`)){ S.students = S.students.filter(x => x.id !== st.id); saveState(); renderTeacher(); renderHome(); } }
+      if(act === "newpet"){ if(confirm(`Give ${st.name} a brand-new pet? Their current pet will be cleared.`)){ st.pet = null; st.stars = 0; st.earned = 0; st.items = []; st.worn = []; if(CONNECTED) gasPost({ action:"resetPet", id: st.id }).catch(()=>{}); renderTeacher(); renderHome(); } }
+      if(act === "remove"){ if(confirm(`Remove ${st.name} from the class list?`)){ S.students = S.students.filter(x => x.id !== st.id); if(CONNECTED) gasPost({ action:"removeStudents", ids:[st.id] }).catch(()=>{}); saveState(); renderTeacher(); renderHome(); } }
     }));
     g.appendChild(card);
   });
@@ -1733,7 +1858,7 @@ function routeStudent(){
    WIRING + START
    ===================================================================== */
 function wire(){
-  $("#toTeacherBtn").addEventListener("click", ()=>{ renderTeacher(); show("teacher"); });
+  const ttBtn = $("#toTeacherBtn"); if(ttBtn) ttBtn.addEventListener("click", ()=>{ renderTeacher(); show("teacher"); });
   $("#teachHomeBtn").addEventListener("click", ()=>{ renderHome(); show("home"); });
   $("#petHomeBtn").addEventListener("click", ()=>{ cur = null; G = null; renderHome(); show("home"); });
   $("#feedBtn").addEventListener("click", ()=>{ audio(); startFeed(); });
@@ -1770,7 +1895,7 @@ function wire(){
   $("#visitBtn").addEventListener("click", sendVisit);
   $("#addStudentBtn").addEventListener("click", ()=>{
     const nm = $("#newStudentName").value.trim(); if(!nm) return;
-    S.students.push({ id: uid(), name: nm, pet: null, hunger: 75, happiness: 80, stars: 0, items: [] });
+    S.students.push({ id: uid(), name: nm, pet: null, hunger: 75, happiness: 80, stars: 0, earned: 0, items: [] });
     $("#newStudentName").value = "";
     saveState(); renderTeacher(); renderHome();
   });
@@ -1779,6 +1904,18 @@ function wire(){
   $("#bulkAddBtn").addEventListener("click", bulkAddStudents);
   $("#appBaseInput").addEventListener("change", e => {
     S.settings.appBase = e.target.value.trim(); saveState(); renderLinks();
+  });
+  $("#newYearBtn").addEventListener("click", async ()=>{
+    if(!confirm("Start a new school year? This removes every student, pet, stars and shop items, and resets the class goal and focus. This cannot be undone.")) return;
+    if(!confirm(`Are you sure? All ${S.students.length} students and their pets will be gone.`)) return;
+    if(CONNECTED){
+      try{ await gasPost({ action:"resetYear" }); }
+      catch(e){ alert("Couldn't reach the sheet — nothing was changed. Try again."); return; }
+    }
+    S.students = [];
+    S.settings.focusType = "letter"; S.settings.focus = "B";
+    S.settings.classGoal = 100; S.settings.classGoalLabel = "Class Party"; S.settings.visit = null;
+    saveState(); renderTeacher(); renderHome(); renderGoal();
   });
   $("#resetDemoBtn").addEventListener("click", ()=>{
     if(!confirm("Reset all demo data back to the starting class?")) return;
