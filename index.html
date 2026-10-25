@@ -154,7 +154,7 @@
   .petted .eye-closed, .sleepy .eye-closed { display:block; }
   @keyframes bounceit { 0%{ transform:translateY(0) scale(1,1);} 30%{ transform:translateY(-26px) scale(.96,1.05);} 55%{ transform:translateY(0) scale(1.06,.92);} 75%{ transform:translateY(-9px) scale(1,1);} 100%{ transform:translateY(0) scale(1,1);} }
   .bouncing { animation:bounceit .55s ease; }
-  @keyframes munch { 0%,100%{ transform:rotate(0deg);} 50%{ transform:rotate(4deg) translateY(3px);} }
+  @keyframes munch { 0%,100%{ transform:rotate(0deg);} 50%{ transform:rotate(8deg) translateY(5px);} }
   .eating .petbody { animation:munch .28s ease-in-out infinite; }
 
   #bubble {
@@ -222,6 +222,29 @@
   .patternbtn { font-size:15px; padding:8px 14px; border-radius:99px; font-weight:bold; background:#fff3e2; border:2px solid #ffd9ae; color:#8a5a2b; }
   .patternbtn.sel { background:#4a3728; color:#fff; }
   .block.quiz { cursor:pointer; animation:blkpulse 1s infinite; }
+  /* Phase 3 — during a Find It round the blocks move to center stage, big. */
+  .blocks.quiz { left:50%; bottom:34%; transform:translateX(-50%); z-index:12; }
+  .blocks.quiz .block { width:58px; height:58px; font-size:32px; }
+  .blocks.quiz .block svg { width:36px; height:36px; }
+  /* Phase 3 — wall clock + calendar (indoor only, like the poster). */
+  .wallclock { position:absolute; top:7%; right:6%; width:15%; min-width:96px; z-index:4; cursor:pointer; text-align:center; }
+  .wallclock svg { width:100%; display:block; filter:drop-shadow(0 3px 2px rgba(0,0,0,.2)); }
+  .wallclock .dig { font-size:15px; font-weight:bold; color:#6b4423; background:rgba(255,255,255,.85); border-radius:99px; padding:1px 8px; display:inline-block; margin-top:2px; }
+  .wallcal { position:absolute; top:33%; right:6%; width:15%; min-width:96px; z-index:4; cursor:pointer; background:#fffdf4; border:4px solid #e07a3f; border-radius:10px; box-shadow:0 3px 8px rgba(0,0,0,.15); padding:6px 6px 7px; text-align:center; }
+  .wallcal .mon { font-size:13px; font-weight:bold; color:#d3542e; }
+  .wallcal .date { font-size:30px; font-weight:bold; color:#4a3728; line-height:1.1; }
+  .wallcal .wk { display:flex; justify-content:space-between; margin-top:4px; }
+  .wallcal .wk span { font-size:11px; font-weight:bold; color:#a3805c; width:14px; text-align:center; }
+  .wallcal .wk span.today { color:#fff; background:#e07a3f; border-radius:50%; }
+  #scene.outdoor .wallclock, #scene.outdoor .wallcal { display:none; }
+  /* Phase 3 — mini-game tray (counting + pattern), same stage as #treats. */
+  #gameTray { position:absolute; z-index:22; bottom:19%; left:50%; transform:translateX(-50%); display:none; flex-direction:column; align-items:center; gap:10px; background:rgba(255,253,244,.94); border:3px solid #ffd9ae; border-radius:16px; padding:12px 16px; max-width:92%; }
+  #gameShow { font-size:34px; letter-spacing:4px; text-align:center; }
+  #gameChoices { display:flex; gap:12px; }
+  .gchoice { width:64px; height:64px; border-radius:14px; background:#26a69a; color:#fff; font-size:28px; font-weight:bold; box-shadow:0 4px 0 #00796b; display:flex; align-items:center; justify-content:center; }
+  .gchoice:active { transform:scale(.93); }
+  .gclose { position:absolute; top:-12px; right:-12px; width:30px; height:30px; border-radius:50%; background:#fff; border:2px solid #ffd9ae; font-size:16px; font-weight:bold; color:#8a5a2b; }
+  .actbtn.games { background:#00acc1; box-shadow:0 4px 0 #00838f; }
   @keyframes blkpulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.14); } }
   #toast { position:fixed; left:50%; top:14px; transform:translateX(-50%) translateY(-8px); background:#fff8d6; border:2px solid #ffd166; color:#4a3728; font-weight:bold; font-size:18px; padding:10px 18px; border-radius:99px; box-shadow:0 4px 12px rgba(0,0,0,.2); opacity:0; transition:opacity .25s, transform .25s; z-index:200; pointer-events:none; }
   #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
@@ -345,6 +368,8 @@
   <div id="scene" class="indoor">
     <div class="window"></div>
     <div class="poster"><div class="glyph" id="posterGlyph">B</div><div class="cap" id="posterCap">We are learning…</div></div>
+    <div class="wallclock" id="wallClock"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#fffdf4" stroke="#e07a3f" stroke-width="5"/><text x="50" y="20" text-anchor="middle" font-size="13" font-weight="bold" fill="#4a3728">12</text><text x="84" y="54" text-anchor="middle" font-size="13" font-weight="bold" fill="#4a3728">3</text><text x="50" y="89" text-anchor="middle" font-size="13" font-weight="bold" fill="#4a3728">6</text><text x="16" y="54" text-anchor="middle" font-size="13" font-weight="bold" fill="#4a3728">9</text><line id="hourHand" x1="50" y1="50" x2="50" y2="28" stroke="#4a3728" stroke-width="5" stroke-linecap="round"/><line id="minHand" x1="50" y1="50" x2="50" y2="16" stroke="#e07a3f" stroke-width="3.5" stroke-linecap="round"/><circle cx="50" cy="50" r="5" fill="#d3542e"/></svg><div class="dig" id="clockDig"></div></div>
+    <div class="wallcal" id="wallCal"></div>
     <div class="rug"></div>
     <div class="sun">☀️</div>
     <div class="tree">🌳</div>
@@ -362,6 +387,7 @@
     <div id="bubble"></div>
     <div id="ball">⚽</div>
     <div id="treats"></div>
+    <div id="gameTray"><button class="gclose" id="gameClose">✕</button><div id="gameShow"></div><div id="gameChoices"></div></div>
     <div id="visitBanner"></div>
     <div id="petActor"></div>
     <div id="guestActor"></div>
@@ -376,9 +402,11 @@
     <button class="actbtn shop" id="shopBtn">🛍️ Shop</button>
     <button class="actbtn tricks" id="tricksBtn">🎪 Tricks</button>
     <button class="actbtn quiz" id="quizBtn">🔍 Find it!</button>
+    <button class="actbtn games" id="gamesBtn">🎲 Games</button>
   </div>
   <div class="roompanel" id="shopPanel"><h3>🛍️ Pet Shop</h3><div id="shopRows"></div><div class="center" style="margin-top:8px;"><button class="bigbtn gray small" id="shopClose">Close</button></div></div>
   <div class="roompanel" id="tricksPanel"><h3>🎪 Pet Tricks</h3><p class="note" style="margin:0 0 6px;">Tricks unlock with stars — and tricks are free to do!</p><div id="trickRows"></div><div class="center" style="margin-top:8px;"><button class="bigbtn gray small" id="tricksClose">Close</button></div></div>
+  <div class="roompanel" id="gamesPanel"><h3>🎲 Games</h3><p class="note" style="margin:0 0 8px;">Just for fun — games don't give stars.</p><div class="center" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;"><button class="bigbtn small" id="countGameBtn">🔢 Counting</button><button class="bigbtn small" id="patternGameBtn">🧩 Pattern</button><button class="bigbtn gray small" id="gamesClose">Close</button></div></div>
   </div>
 </div>
 
@@ -407,6 +435,13 @@
         <input class="textin" id="focusCustom" placeholder="Type it here" style="display:none; width:170px;">
       </div>
       <div class="focusbtns" id="focusBtns"></div>
+      <div class="rowflex" id="setEditorRow" style="margin-top:4px;">
+        <span style="font-weight:bold;">Practice set:</span>
+        <select id="setAddSelect"></select>
+        <button class="bigbtn green small" id="setAddBtn">＋ Add to set</button>
+        <span id="setChips" style="font-size:14px; color:#8a6d4f;"></span>
+      </div>
+      <p class="note" id="setNote">Rooms cycle through this set in order — a correct Find It or Feed moves to the next item. Click an item above to practice just that one, or tap a chip to start the set there.</p>
       <div class="rowflex" id="wordAddRow" style="display:none; margin-top:4px;">
         <input class="textin" id="newWordInput" placeholder="Add your own sight word" style="width:220px;">
         <button class="bigbtn green small" id="addWordBtn">＋ Add Word</button>
@@ -534,12 +569,13 @@ function tone(freq, dur, type, vol, when, slideTo){
 const SFX = {
   chirp(){ tone(660, .14, "sine", .1, 0, 990); tone(880, .16, "sine", .09, .1, 1180); },
   pop(){ tone(420, .09, "triangle", .14, 0, 760); },
-  munch(){ for(let i=0;i<3;i++) tone(180 - i*25, .07, "square", .05, i*.13); },
+  munch(){ for(let i=0;i<4;i++) tone(200 - i*30, .08, "square", .16, i*.14); },
   sparkle(){ [880, 1174, 1568].forEach((f,i)=> tone(f, .16, "sine", .09, i*.07)); },
+  cheer(){ [523, 659, 784, 1047].forEach((f,i)=> tone(f, .18, "triangle", .14, i*.09)); },
   purrTick(){ tone(58, .09, "sine", .16); tone(46, .08, "triangle", .12, .02); },
   boing(){ tone(300, .2, "sine", .1, 0, 90); tone(500, .18, "sine", .08, .05, 950); },
   sniff(){ tone(300, .06, "triangle", .05, 0, 380); tone(300, .06, "triangle", .05, .09, 380); },
-  grumble(){ tone(85, .3, "sine", .12, 0, 55); tone(70, .35, "sine", .1, .25, 48); },
+  grumble(){ [150, 120, 170, 110].forEach((f,i)=> tone(f, .16, "triangle", .22, i*.18, f - 40)); },
   snore(){ tone(120, .4, "sine", .05, 0, 80); },
 };
 
@@ -963,8 +999,39 @@ function finishCreate(){
 /* =====================================================================
    FOCUS (what the class is learning)
    ===================================================================== */
+/* Phase 3 — practice sets: the teacher picks a SET of items (sight words,
+   letters, numbers…) and each pet room cycles through it, one item at a
+   time. The room's position in the set lives in that device's localStorage
+   (per student), so rooms never write settings — the Phase 2 rule that
+   keeps dashboard and room saves from clobbering each other stays intact.
+   A missing/empty set means today's single-item behavior. */
+function focusSetOf(){
+  const s = S.settings.focusSet;
+  return (Array.isArray(s) && s.length) ? s : [S.settings.focus];
+}
+function focusIdxKey(){ return "cp_focusIdx_" + (cur ? cur.id : "class"); }
+function focusIdxGet(){
+  try{ const v = parseInt(localStorage.getItem(focusIdxKey()), 10); return isNaN(v) ? 0 : v; }catch(e){ return 0; }
+}
+function focusIdxSet(i){
+  try{ localStorage.setItem(focusIdxKey(), String(i)); }catch(e){}
+}
+function currentFocus(){
+  const set = focusSetOf();
+  return set[focusIdxGet() % set.length];
+}
+/* Advance to the next item in the set after a learning success. Returns
+   the new item's value, or null when the set has a single item. */
+function advanceFocus(){
+  const set = focusSetOf();
+  if(set.length <= 1) return null;
+  const next = (focusIdxGet() + 1) % set.length;
+  focusIdxSet(next);
+  renderFocusInRoom();
+  return set[next];
+}
 function focusDisplay(){
-  const t = S.settings.focusType, v = S.settings.focus;
+  const t = S.settings.focusType, v = currentFocus();
   if(t === "letter") return { text: v, big: v, phrase: `${v} is for ${LETTER_WORDS[v] || ""}!`, cap: `${v} is for ${LETTER_WORDS[v] || ""}` };
   if(t === "number") return { text: v, big: v, phrase: `Number ${v}!`, cap: `Number ${v}` };
   if(t === "shape")  return { text: v, big: null, phrase: `A ${v}!`, cap: `Shape: ${v}` };
@@ -978,7 +1045,7 @@ function glyphHTML(value, type){
   return esc(value);
 }
 function distractors(){
-  const t = S.settings.focusType, v = S.settings.focus;
+  const t = S.settings.focusType, v = currentFocus();
   const pick = arr => arr.filter(x => x !== v).sort(()=>Math.random()-.5).slice(0,2);
   if(t === "letter") return pick("ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""));
   if(t === "number"){ const n = parseInt(v,10); return pick(["1","2","3","4","5","6","7","8","9","10"]).slice(0,2); }
@@ -1004,7 +1071,10 @@ function makeActor(el, pet, name, guest, seed, extras){
 }
 function placeActor(a){
   a.el.style.left = a.x + "%"; a.el.style.top = a.y + "%";
-  a.flip.style.transform = `scaleX(${a.facing})`;
+  /* Napping pets lie flat: squashed low with closed eyes (the .sleepy
+     class swaps the eyes) instead of standing upright. */
+  const napPose = a.mode === "nap" ? " scaleY(.52) translateY(55%)" : "";
+  a.flip.style.transform = `scaleX(${a.facing})${napPose}`;
   const walking = Math.abs(a.tx - a.x) > 1.2 || Math.abs(a.ty - a.y) > 1.2;
   a.el.classList.toggle("walking", walking && a.mode !== "nap");
   return walking;
@@ -1032,11 +1102,11 @@ function openPetRoom(studentId){
   P.x = 30 + Math.random()*40; P.tx = P.x;
   placeActor(P);
   $("#ball").style.display = "none"; ballOn = false; vBall.on = false;
-  $("#treats").style.display = "none";
+  $("#treats").style.display = "none"; closeGameTray();
   setBowl(false); lastInteract = Date.now();
   hideBubble();
   quizActive = false;
-  renderFocusInRoom(); updateMeters(); renderSceneItems(); checkVisit(true);
+  renderFocusInRoom(); updateMeters(); renderSceneItems(); updateWallClock(); checkVisit(true);
   show("pet");
   const greetName = cur.name, greetPet = cur.pet.name;
   setTimeout(()=> showBubble(`Hi, ${esc(greetName)}! I'm <b>${esc(greetPet)}</b>! 💗`, 5500), 400);
@@ -1044,19 +1114,27 @@ function openPetRoom(studentId){
 function blockTap(v){
   if(!quizActive) return;
   const f = focusDisplay();
-  if(v === S.settings.focus){
+  if(v === currentFocus()){
     quizActive = false; $("#blocksRow").classList.remove("quiz");
-    bouncePet(); SFX.sparkle(); hearts(2);
-    showBubble(`You found it! 🎉<br>${esc(f.phrase)}`, 2800);
+    bouncePet(); SFX.cheer(); hearts(2);
+    awardStars(1, "for finding it!");
+    const next = advanceFocus();
+    const nextLine = next !== null ? `<br>Next up: <b>${esc(focusDisplay().text)}</b>!` : "";
+    showBubble(`You found it! 🎉<br>${esc(f.phrase)}${nextLine}`, 2800);
   } else {
     SFX.sniff();
+    $("#blocksRow").querySelectorAll(".block").forEach(b => {
+      if(b.dataset.v === v){ b.classList.remove("wiggling"); void b.offsetWidth; b.classList.add("wiggling"); }
+    });
     showBubble(`Try again! Find the <b>${esc(f.text)}</b>! 🧱`, 2200);
   }
 }
 function startQuiz(){
   if(!cur) return;
   if($("#scene").className !== "indoor") toggleOutside();
-  quizActive = true; $("#blocksRow").classList.add("quiz");
+  $("#treats").style.display = "none"; feeding = false; hideBall(); closeGameTray();
+  quizActive = true;
+  renderFocusInRoom(); // re-shuffles the blocks every round — no memorizing spots
   const f = focusDisplay();
   showBubble(`Find the <b>${esc(f.text)}</b>!<br>Tap the right block! 🧱`, 4000);
   SFX.pop();
@@ -1064,11 +1142,11 @@ function startQuiz(){
 function renderFocusInRoom(){
   const f = focusDisplay(), t = S.settings.focusType;
   const g = $("#posterGlyph");
-  g.innerHTML = glyphHTML(S.settings.focus, t);
+  g.innerHTML = glyphHTML(currentFocus(), t);
   if(t === "shape" || t === "color") g.querySelector("svg,span").style.width = "60px";
   $("#posterCap").textContent = f.cap;
   const ds = distractors();
-  const vals = [S.settings.focus, ds[0], ds[1]].filter(x => x !== undefined).sort(()=> Math.random() - .5);
+  const vals = [currentFocus(), ds[0], ds[1]].filter(x => x !== undefined).sort(()=> Math.random() - .5);
   const cols = ["#ef476f", "#118ab2", "#06d6a0"];
   $("#blocksRow").innerHTML = vals.map((v,i) =>
     `<div class="block" data-v="${esc(v)}" style="background:${cols[i%3]}">${t==="letter"||t==="number"||t==="word" ? esc(v) : glyphHTML(v, t)}</div>`).join("");
@@ -1180,15 +1258,16 @@ function startPetLoop(){
   }, 25000);
   idleTimer = setInterval(idleBehavior, 9000);
   visitTimer = setInterval(visitPlay, 1500);
+  wallTimer = setInterval(updateWallClock, 20000);
   if(CONNECTED) pollTimer = setInterval(pollSettings, 10000);
 }
 function stopPetLoop(){
   if(rafId) cancelAnimationFrame(rafId);
-  [decayTimer, idleTimer, pollTimer, visitTimer].forEach(t => t && clearInterval(t));
-  rafId = decayTimer = idleTimer = pollTimer = visitTimer = null;
+  [decayTimer, idleTimer, pollTimer, visitTimer, wallTimer].forEach(t => t && clearInterval(t));
+  rafId = decayTimer = idleTimer = pollTimer = visitTimer = wallTimer = null;
 }
 function idleBehavior(){
-  if(!P || P.mode !== "idle" || $("#treats").style.display === "flex") return;
+  if(!P || P.mode !== "idle" || $("#treats").style.display === "flex" || $("#gameTray").style.display === "flex") return;
   const f = focusDisplay();
   const r = Math.random();
   if(cur.hunger < 42){
@@ -1235,7 +1314,7 @@ function initSceneTouch(){
   const sc = $("#scene");
   sc.addEventListener("pointerdown", e => {
     audio(); lastInteract = Date.now();
-    if(e.target.closest("#treats") || e.target.closest("#bubble") || e.target.closest(".block")) return;
+    if(e.target.closest("#treats") || e.target.closest("#bubble") || e.target.closest(".block") || e.target.closest("#gameTray") || e.target.closest(".wallclock") || e.target.closest(".wallcal")) return;
     if(P.mode === "nap") return;
     const onPet = overPet(e, P);
     touch = { onPet, t0: Date.now(), rub: 0, lastX: e.clientX, lastY: e.clientY, moved: false };
@@ -1278,10 +1357,23 @@ function initSceneTouch(){
 /* ---------- feeding = the learning game ---------- */
 let feeding = false;
 function setBowl(full){ const f = $("#bowlFood"); if(f) f.style.opacity = full ? "1" : "0"; }
+/* Where the pet should stand to eat: the bowl's real on-screen spot.
+   The actor's (x, y) is its feet position, so the bowl's bottom-center
+   puts the pet right at the bowl on any screen size. */
+function bowlTarget(){
+  const sc = $("#scene"), bw = $("#bowl");
+  if(!sc || !bw) return { x: 79, y: 93 };
+  const sr = sc.getBoundingClientRect(), br = bw.getBoundingClientRect();
+  if(!sr.width || !sr.height) return { x: 79, y: 93 };
+  return {
+    x: clamp((br.left + br.width / 2 - sr.left) / sr.width * 100, 8, 92),
+    y: clamp((br.bottom - sr.top) / sr.height * 100, 62, 97)
+  };
+}
 function startFeed(){
   if(!cur || P.mode === "nap") return;
   lastInteract = Date.now();
-  hideBall();
+  hideBall(); closeGameTray();
   const t = S.settings.focusType;
   const f = focusDisplay();
   const box = $("#treats"); box.innerHTML = "";
@@ -1290,7 +1382,7 @@ function startFeed(){
     options = ["🍪","🧁","🍩"].map(em => ({ label: em, ok: true, emoji: true }));
   } else {
     const ds = distractors();
-    options = [{ v: S.settings.focus, ok: true }, { v: ds[0], ok: false }, { v: ds[1], ok: false }]
+    options = [{ v: currentFocus(), ok: true }, { v: ds[0], ok: false }, { v: ds[1], ok: false }]
       .sort(()=>Math.random()-.5)
       .map(o => ({ label: glyphHTML(o.v, t), ok: o.ok }));
   }
@@ -1303,12 +1395,13 @@ function startFeed(){
   box.style.display = "flex";
   feeding = true;
   setTimeout(()=>{
-    if(t === "letter") showBubble(`I'm hungry for…<br><span class="huge">${esc(S.settings.focus)}</span><br>${esc(f.phrase)}`, 5500);
-    else if(t === "shape") showBubble(`I'm hungry for a…<br>${glyphHTML(S.settings.focus, t)}<br>${esc(f.phrase)}`, 5500);
-    else if(t === "color") showBubble(`I'm hungry for…<br>${glyphHTML(S.settings.focus, t)}<br>something <b>${esc(S.settings.focus)}</b>!`, 5500);
+    if(t === "letter") showBubble(`I'm hungry for…<br><span class="huge">${esc(currentFocus())}</span><br>${esc(f.phrase)}`, 5500);
+    else if(t === "shape") showBubble(`I'm hungry for a…<br>${glyphHTML(currentFocus(), t)}<br>${esc(f.phrase)}`, 5500);
+    else if(t === "color") showBubble(`I'm hungry for…<br>${glyphHTML(currentFocus(), t)}<br>something <b>${esc(currentFocus())}</b>!`, 5500);
     else showBubble(`I'm hungry for…<br><span class="huge">${esc(f.text)}</span>`, 5500);
   }, 500);
   SFX.pop();
+  if(cur.hunger < 42) SFX.grumble(); // hungry pets grumble when Feed opens too
 }
 function feedChoice(btn, ok){
   if(!feeding) return;
@@ -1324,7 +1417,8 @@ function feedChoice(btn, ok){
   // The chosen treat goes in the bowl — then the pet walks over and eats it.
   setBowl(true); SFX.pop();
   showBubble("Yum, that's the one!<br>Watch me eat! 🥣", 1800);
-  P.tx = 79; P.ty = 93; P.facing = 1;
+  const bt = bowlTarget();
+  P.tx = bt.x; P.ty = bt.y; P.facing = 1;
   const fedStudent = cur;
   let ate = false;
   const eatNow = ()=>{
@@ -1341,13 +1435,18 @@ function feedChoice(btn, ok){
       showToast("⭐ +1 star for eating!");
       SFX.sparkle(); hearts(2); bouncePet();
       const f = focusDisplay();
-      showBubble(`All gone! ⭐<br>${esc(f.phrase)}`, 2800);
+      const next = advanceFocus();
+      const nextLine = next !== null ? `<br>Next up: <b>${esc(focusDisplay().text)}</b>!` : "";
+      showBubble(`All gone! ⭐<br>${esc(f.phrase)}${nextLine}`, 2800);
     }, 1500);
   };
   const watcher = setInterval(()=>{
-    if(Math.abs(P.x - 79) < 4 && Math.abs(P.y - 93) < 3.5){ clearInterval(watcher); eatNow(); }
+    if(Math.abs(P.x - bt.x) < 4 && Math.abs(P.y - bt.y) < 3.5){ clearInterval(watcher); eatNow(); }
   }, 120);
-  setTimeout(()=>{ clearInterval(watcher); eatNow(); }, 2600);
+  // Fallback sized to the actual walk (X at 30%/s, Y at ~16.5%/s), so a pet
+  // crossing the room still arrives before it starts eating.
+  const walkSecs = Math.max(Math.abs(P.x - bt.x) / 30, Math.abs(P.y - bt.y) / 16.5);
+  setTimeout(()=>{ clearInterval(watcher); eatNow(); }, clamp((walkSecs + 0.8) * 1000, 2600, 6000));
 }
 
 /* ---------- play with the ball ---------- */
@@ -1355,6 +1454,7 @@ let ballOn = false;
 function togglePlay(){
   if(P.mode === "nap") return;
   lastInteract = Date.now();
+  closeGameTray();
   vBall.on = false; // the student's own game takes over from visit play
   if(ballOn){ hideBall(); return; }
   $("#treats").style.display = "none"; feeding = false;
@@ -1376,6 +1476,85 @@ function moveBall(x, y){
 }
 function hideBall(){ ballOn = false; $("#ball").style.display = "none"; }
 
+/* ---------- Phase 3: wall clock + calendar ---------- */
+let wallTimer = null;
+const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MON_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+function daypart(h){ return h < 12 ? "morning" : h < 18 ? "afternoon" : "evening"; }
+function time12(d){
+  let h = d.getHours(); const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
+  return { text: `${h}:${String(d.getMinutes()).padStart(2, "0")} ${ap}`, hour: h, mins: d.getMinutes() };
+}
+function updateWallClock(){
+  const now = new Date(), t = time12(now);
+  const hh = $("#hourHand"), mh = $("#minHand");
+  if(hh) hh.setAttribute("transform", `rotate(${(now.getHours() % 12) * 30 + now.getMinutes() * 0.5} 50 50)`);
+  if(mh) mh.setAttribute("transform", `rotate(${now.getMinutes() * 6} 50 50)`);
+  const dig = $("#clockDig"); if(dig) dig.textContent = t.text;
+  const cal = $("#wallCal");
+  if(cal){
+    const dow = now.getDay();
+    const wk = ["S","M","T","W","T","F","S"].map((d,i) =>
+      `<span class="${i === dow ? "today" : ""}">${d}</span>`).join("");
+    cal.innerHTML = `<div class="mon">${MON_NAMES[now.getMonth()]} ${now.getFullYear()}</div><div class="date">${now.getDate()}</div><div class="wk">${wk}</div>`;
+  }
+}
+
+/* ---------- Phase 3: mini-games (counting + pattern, no stars) ---------- */
+let gameKind = null;
+function closeGameTray(){ const t = $("#gameTray"); if(t) t.style.display = "none"; gameKind = null; }
+function openGameTray(){ const t = $("#gameTray"); t.style.display = "flex"; }
+function gameChoiceBtns(choices, onPick){
+  const box = $("#gameChoices"); box.innerHTML = "";
+  choices.forEach(c => {
+    const b = document.createElement("button");
+    b.className = "gchoice"; b.innerHTML = c.html;
+    b.addEventListener("click", e => { e.stopPropagation(); onPick(c, b); });
+    box.appendChild(b);
+  });
+}
+function resetGameState(){
+  hideBall(); $("#treats").style.display = "none"; feeding = false;
+  quizActive = false; $("#blocksRow").classList.remove("quiz");
+  const gp = $("#gamesPanel"); if(gp) gp.classList.remove("open");
+}
+function startCountGame(){
+  if(!cur || P.mode === "nap") return;
+  resetGameState();
+  const n = 1 + Math.floor(Math.random() * 10);
+  const emoji = ["🍎","⭐","🐟","🌸","🚗"][Math.floor(Math.random() * 5)];
+  const names = { "🍎": "apples", "⭐": "stars", "🐟": "fish", "🌸": "flowers", "🚗": "cars" };
+  gameKind = "count";
+  $("#gameShow").innerHTML = `<div>${emoji.repeat(n)}</div><div style="font-size:19px;font-weight:bold;color:#6b4423;">How many ${names[emoji]}?</div>`;
+  const ds = [];
+  while(ds.length < 2){
+    const d = clamp(n + (Math.random() < .5 ? -1 : 1) * (1 + Math.floor(Math.random() * 2)), 1, 10);
+    if(d !== n && !ds.includes(d)) ds.push(d);
+  }
+  const opts = [{ v: n, ok: true }, { v: ds[0], ok: false }, { v: ds[1], ok: false }].sort(()=> Math.random() - .5);
+  gameChoiceBtns(opts.map(o => ({ html: String(o.v), ok: o.ok })), (c, b) => {
+    if(c.ok){ bouncePet(); SFX.cheer(); hearts(2); showBubble(`Yes! ${n} ${names[emoji]}! 🎉`, 2600); setTimeout(closeGameTray, 1600); }
+    else { b.classList.remove("wiggling"); void b.offsetWidth; b.classList.add("wiggling"); SFX.sniff(); showBubble(`Count them again! 👆`, 2000); }
+  });
+  openGameTray(); SFX.pop();
+}
+function startPatternGame(){
+  if(!cur || P.mode === "nap") return;
+  resetGameState();
+  const pool = ["🍎","🌸","🐟","⭐","🚗","🍌"];
+  const [A, B, C] = pool.sort(()=> Math.random() - .5).slice(0, 3);
+  const ab = Math.random() < .5;
+  const seq = ab ? [A, B, A, B, A] : [A, A, B, A, A];
+  gameKind = "pattern";
+  $("#gameShow").innerHTML = `<div>${seq.join(" ")} <span style="color:#d3542e;">?</span></div><div style="font-size:19px;font-weight:bold;color:#6b4423;">What comes next?</div>`;
+  const opts = [{ v: A, ok: false }, { v: B, ok: true }, { v: C, ok: false }].sort(()=> Math.random() - .5);
+  gameChoiceBtns(opts.map(o => ({ html: o.v, ok: o.ok })), (c, b) => {
+    if(c.ok){ bouncePet(); SFX.cheer(); hearts(2); showBubble(`You got the pattern! 🎉`, 2600); setTimeout(closeGameTray, 1600); }
+    else { b.classList.remove("wiggling"); void b.offsetWidth; b.classList.add("wiggling"); SFX.sniff(); showBubble(`Look at the pattern again! 🧩`, 2000); }
+  });
+  openGameTray(); SFX.pop();
+}
+
 /* ---------- outside / nap ---------- */
 function toggleOutside(){
   lastInteract = Date.now();
@@ -1393,7 +1572,7 @@ function toggleOutside(){
 function napTime(){
   if(P.mode === "nap") return;
   lastInteract = Date.now();
-  hideBall(); $("#treats").style.display = "none"; feeding = false;
+  hideBall(); $("#treats").style.display = "none"; feeding = false; closeGameTray();
   P.mode = "nap"; P.el.classList.add("sleepy");
   showBubble("😴 Nap time…", 2000); SFX.snore();
   let n = 0;
@@ -1479,8 +1658,9 @@ async function pollSettings(){
     const data = await gasGet();
     if(data && data.settings){
       const oldFocus = S.settings.focusType + S.settings.focus;
+      const oldSet = JSON.stringify(S.settings.focusSet || []);
       S.settings = data.settings;
-      if(oldFocus !== S.settings.focusType + S.settings.focus) renderFocusInRoom();
+      if(oldFocus !== S.settings.focusType + S.settings.focus || oldSet !== JSON.stringify(S.settings.focusSet || [])) renderFocusInRoom();
       updateMeters();
       checkVisit(false);
     }
@@ -1585,7 +1765,7 @@ function doTrick(id){
   }
 }
 function togglePanel(id){
-  ["shopPanel", "tricksPanel"].forEach(p => { if(p !== id) $("#" + p).classList.remove("open"); });
+  ["shopPanel", "tricksPanel", "gamesPanel"].forEach(p => { if(p !== id) $("#" + p).classList.remove("open"); });
   const el = $("#" + id); el.classList.toggle("open");
   if(id === "shopPanel" && el.classList.contains("open")) renderShop();
   if(id === "tricksPanel" && el.classList.contains("open")) renderTricks();
@@ -1689,12 +1869,13 @@ function renderFocusControls(){
   if(t === "custom") $("#focusCustom").value = S.settings.focus;
   $("#wordAddRow").style.display = t === "word" ? "" : "none";
   renderCustomWordsList();
+  renderSetEditor();
   const box = $("#focusBtns"); box.innerHTML = "";
   const mkBtn = (label, val, html) => {
     const b = document.createElement("button");
     if(html) b.innerHTML = html; else b.textContent = label;
     if(S.settings.focus === val) b.className = "sel";
-    b.addEventListener("click", ()=>{ S.settings.focus = val; saveState(); SFX.pop(); renderFocusControls(); });
+    b.addEventListener("click", ()=>{ setFocusSet([val]); SFX.pop(); renderFocusControls(); });
     box.appendChild(b);
   };
   if(t === "letter") "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(L => mkBtn(L, L));
@@ -1712,8 +1893,55 @@ function renderCustomWordsList(){
     `<span style="background:#fff3e2;border:2px solid #ffd9ae;border-radius:999px;padding:2px 6px 2px 10px;margin-right:5px;font-weight:bold;">${esc(w)} <button data-wdel="${i}" title="Remove" style="background:none;color:#b03a2e;font-weight:bold;font-size:14px;">✕</button></span>`).join("");
   el.querySelectorAll("[data-wdel]").forEach(b => b.addEventListener("click", ()=>{
     const removed = S.settings.customWords.splice(Number(b.dataset.wdel), 1)[0];
-    if(S.settings.focus === removed) S.settings.focus = "the";
+    if(Array.isArray(S.settings.focusSet)){
+      S.settings.focusSet = S.settings.focusSet.filter(x => x !== removed);
+      if(!S.settings.focusSet.length) S.settings.focusSet = [S.settings.focus];
+      if(S.settings.focus === removed) S.settings.focus = S.settings.focusSet[0];
+    } else if(S.settings.focus === removed) S.settings.focus = "the";
     saveState(); renderFocusControls();
+  }));
+}
+/* Phase 3 — the practice set is the source of truth; settings.focus is
+   always the set's first item (where a new student's room starts, and the
+   dashboard highlight). Every dashboard mutation goes through here. */
+function setFocusSet(set){
+  const clean = (Array.isArray(set) ? set : []).filter(v => v !== undefined && v !== null && v !== "");
+  S.settings.focusSet = clean.length ? clean : [S.settings.focus];
+  S.settings.focus = S.settings.focusSet[0];
+  saveState();
+}
+function setKindItems(){
+  const t = S.settings.focusType;
+  if(t === "letter") return "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  if(t === "number") return ["1","2","3","4","5","6","7","8","9","10"];
+  if(t === "shape") return SHAPES.slice();
+  if(t === "color") return Object.keys(COLOR_WORDS);
+  if(t === "word") return SIGHT_WORDS.concat(S.settings.customWords || []);
+  return [];
+}
+function renderSetEditor(){
+  const row = $("#setEditorRow"); if(!row) return;
+  const show = S.settings.focusType !== "custom"; // "My Own" is a single item
+  row.style.display = show ? "" : "none";
+  const note = $("#setNote"); if(note) note.style.display = show ? "" : "none";
+  if(!show) return;
+  const sel = $("#setAddSelect"); const prevSel = sel.value; sel.innerHTML = "";
+  setKindItems().forEach(v => {
+    const o = document.createElement("option"); o.value = v; o.textContent = v; sel.appendChild(o);
+  });
+  if([...sel.options].some(o => o.value === prevSel)) sel.value = prevSel;
+  const chips = $("#setChips");
+  const set = focusSetOf();
+  chips.innerHTML = set.map((v,i) =>
+    `<span style="background:#e8f5e9;border:2px solid #a5d6a7;border-radius:999px;padding:2px 6px 2px 10px;margin-right:5px;font-weight:bold;cursor:pointer;" title="Tap to start here" data-setfirst="${i}">${esc(v)} <button data-setdel="${i}" title="Remove" style="background:none;color:#b03a2e;font-weight:bold;font-size:14px;">✕</button></span>`).join("");
+  chips.querySelectorAll("[data-setdel]").forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation();
+    const set2 = focusSetOf().filter((_, i) => i !== Number(b.dataset.setdel));
+    setFocusSet(set2.length ? set2 : [S.settings.focus]); renderFocusControls(); SFX.pop();
+  }));
+  chips.querySelectorAll("[data-setfirst]").forEach(s => s.addEventListener("click", () => {
+    const set2 = focusSetOf(), i = Number(s.dataset.setfirst);
+    setFocusSet([set2[i]].concat(set2.filter((_, j) => j !== i))); renderFocusControls(); SFX.pop();
   }));
 }
 function addCustomWord(){
@@ -1722,7 +1950,9 @@ function addCustomWord(){
   S.settings.customWords = S.settings.customWords || [];
   if(!SIGHT_WORDS.includes(w) && !S.settings.customWords.includes(w)){
     S.settings.customWords.push(w);
-    S.settings.focus = w;
+    // New word joins the cycle first, so rooms reach it right away.
+    const set = focusSetOf().filter(x => x !== w);
+    setFocusSet([w].concat(set));
   }
   inp.value = "";
   saveState(); renderFocusControls(); SFX.pop();
@@ -1868,6 +2098,19 @@ function wire(){
   $("#shopBtn").addEventListener("click", ()=>{ audio(); togglePanel("shopPanel"); });
   $("#tricksBtn").addEventListener("click", ()=>{ audio(); togglePanel("tricksPanel"); });
   $("#quizBtn").addEventListener("click", ()=>{ audio(); startQuiz(); });
+  $("#gamesBtn").addEventListener("click", ()=>{ audio(); togglePanel("gamesPanel"); });
+  $("#gamesClose").addEventListener("click", ()=> $("#gamesPanel").classList.remove("open"));
+  $("#countGameBtn").addEventListener("click", ()=>{ audio(); startCountGame(); });
+  $("#patternGameBtn").addEventListener("click", ()=>{ audio(); startPatternGame(); });
+  $("#gameClose").addEventListener("click", ()=>{ audio(); closeGameTray(); });
+  $("#wallClock").addEventListener("click", e => { e.stopPropagation(); audio(); const now = new Date(), t = time12(now);
+    showBubble(`🕐 It's ${t.text} in the ${daypart(now.getHours())}!<br>The little hand is on the ${t.hour}.`, 4000); });
+  $("#wallCal").addEventListener("click", e => { e.stopPropagation(); audio(); const now = new Date();
+    const y = new Date(now); y.setDate(now.getDate() - 1);
+    const tm = new Date(now); tm.setDate(now.getDate() + 1);
+    showBubble(`📅 Today is ${DAY_NAMES[now.getDay()]}, ${MON_NAMES[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}!<br>Yesterday was ${DAY_NAMES[y.getDay()]}. Tomorrow is ${DAY_NAMES[tm.getDay()]}.`, 5500); });
+  $("#setAddBtn").addEventListener("click", ()=>{ const v = $("#setAddSelect").value; if(!v) return;
+    const set = focusSetOf(); if(!set.includes(v)) set.push(v); setFocusSet(set); renderFocusControls(); SFX.pop(); });
   $("#shopClose").addEventListener("click", ()=> $("#shopPanel").classList.remove("open"));
   $("#tricksClose").addEventListener("click", ()=> $("#tricksPanel").classList.remove("open"));
   $("#goalInput").addEventListener("change", e => { S.settings.classGoal = Math.max(1, parseInt(e.target.value, 10) || 100); saveState(); renderGoal(); });
@@ -1882,10 +2125,11 @@ function wire(){
     S.settings.focusType = t;
     S.settings.focus = t === "letter" ? "B" : t === "number" ? "5" : t === "shape" ? "star" :
                          t === "color" ? "red" : t === "word" ? "the" : "★";
+    S.settings.focusSet = [S.settings.focus];
     saveState(); renderFocusControls();
   });
   $("#focusCustom").addEventListener("change", e => {
-    S.settings.focus = e.target.value.trim() || "★"; saveState();
+    S.settings.focus = e.target.value.trim() || "★"; S.settings.focusSet = [S.settings.focus]; saveState();
   });
   $("#paradeBtn").addEventListener("click", ()=>{
     if(S.students.filter(s => s.pet).length < 2){ alert("At least two students need pets for a parade. Emma and Liam already have pets in the demo!"); return; }
