@@ -115,6 +115,12 @@
   #scene.outdoor .treeshadow { display:block; }
   .yardflower { position:absolute; font-size:34px; display:none; z-index:3; }
   #scene.outdoor .yardflower { display:block; }
+  .yardboard { position:absolute; left:32%; bottom:36%; width:118px; background:#fffdf4; border:6px solid #8a5a2b; border-radius:8px; box-shadow:0 4px 9px rgba(0,0,0,.15); display:none; z-index:3; text-align:center; padding:6px 4px; }
+  .yardboard::after { content:""; position:absolute; left:50%; top:100%; width:10px; height:18px; background:#8a5a2b; transform:translateX(-50%); }
+  #scene.outdoor .yardboard { display:block; }
+  .yardglyph { font-size:52px; font-weight:bold; color:#d3542e; line-height:1; display:flex; align-items:center; justify-content:center; }
+  .yardglyph svg { width:52px; height:52px; }
+  .yardcap { font-size:12px; color:#a3805c; font-weight:bold; margin-top:2px; }
   #scene.outdoor .tree { display:block; }
   #scene.outdoor .window, #scene.outdoor .poster, #scene.outdoor .rug { display:none; }
   .sun { position:absolute; top:5%; right:8%; font-size:64px; display:none; }
@@ -276,6 +282,9 @@
   .rolling { animation:rollspin .8s ease; }
   @keyframes jumpup { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-70px); } }
   .jumping { animation:jumpup .9s ease; }
+  @keyframes paradedance { 0% { transform:translateY(0) rotate(-7deg); } 100% { transform:translateY(-16px) rotate(7deg); } }
+  .petactor.dancing { animation:paradedance .45s ease-in-out infinite alternate; }
+  #paradeHoop { position:absolute; left:50%; bottom:8%; width:120px; height:120px; margin-left:-60px; border:10px solid #e63946; border-radius:50%; display:none; z-index:6; }
   .goalbar { height:16px; background:#f3e3cd; border-radius:99px; overflow:hidden; margin:6px 0; }
   .goalbar > div { height:100%; background:#4e9a51; }
 
@@ -391,6 +400,7 @@
     <div class="yardflower" style="left:22%;bottom:41%;">🌸</div>
     <div class="yardflower" style="left:58%;bottom:39%;">🌼</div>
     <div class="yardflower" style="left:80%;bottom:42%;">🌷</div>
+    <div class="yardboard" id="yardBoard"><div class="yardglyph" id="yardGlyph">B</div><div class="yardcap" id="yardCap">We are learning…</div></div>
     <div class="blocks" id="blocksRow"></div>
     <div class="bowl" id="bowl"><svg viewBox="0 0 100 60">
       <g id="bowlFood" style="opacity:0;">
@@ -537,11 +547,15 @@
     <h1>🎉 Pet Parade!</h1>
     <div class="spacer"></div>
     <span class="chip" id="paradeNames"></span>
+    <button class="bigbtn small" id="paradeDanceBtn">💃 Dance!</button>
+    <button class="bigbtn small" id="paradeTricksBtn">🎪 Tricks together!</button>
+    <button class="bigbtn small" id="paradeMusicBtn">🔊 Music</button>
   </div>
   <div id="paradeScene">
     <div class="tree" style="display:block;">🌳</div>
     <div class="sun" style="display:block;">☀️</div>
-    <div id="paradeBall">🎾</div>
+    <div id="paradeBall">🏀</div>
+    <div id="paradeHoop"></div>
     <div id="paradeA1" class="petactor"></div>
     <div id="paradeA2" class="petactor"></div>
   </div>
@@ -590,6 +604,7 @@ const SFX = {
   munch(){ for(let i=0;i<4;i++) tone(200 - i*30, .08, "square", .16, i*.14); },
   sparkle(){ [880, 1174, 1568].forEach((f,i)=> tone(f, .16, "sine", .09, i*.07)); },
   cheer(){ [523, 659, 784, 1047].forEach((f,i)=> tone(f, .18, "triangle", .14, i*.09)); },
+  giggle(){ [880, 1174, 988, 1318, 1047, 1318].forEach((f,i)=> tone(f, .09, "triangle", .12, i*.07)); },
   purrTick(){ tone(58, .09, "sine", .16); tone(46, .08, "triangle", .12, .02); },
   boing(){ tone(300, .2, "sine", .1, 0, 90); tone(500, .18, "sine", .08, .05, 950); },
   sniff(){ tone(300, .06, "triangle", .05, 0, 380); tone(300, .06, "triangle", .05, .09, 380); },
@@ -616,9 +631,13 @@ const SHOP_ITEMS = [
   { id:"bed", name:"Cozy Bed", emoji:"🛏️", price:5, where:"indoor" },
   { id:"doghouse", name:"Doghouse", emoji:"🏠", price:8, where:"outdoor" },
   { id:"slide", name:"Slide", emoji:"🛝", price:10, where:"outdoor" },
-  { id:"ball", name:"Bouncy Ball", emoji:"🎾", price:3, where:"outdoor" },
+  { id:"ball", name:"Bouncy Ball", emoji:"🏀", price:3, where:"outdoor" },
   { id:"sunglasses", name:"Sunglasses", emoji:"😎", price:5, where:"worn" },
   { id:"hat", name:"Cool Hat", emoji:"🎩", price:5, where:"worn" },
+  { id:"starshades", name:"Star Shades", emoji:"🤩", price:5, where:"worn" },
+  { id:"crown", name:"Crown", emoji:"👑", price:8, where:"worn" },
+  { id:"flower", name:"Flower", emoji:"🌸", price:3, where:"worn" },
+  { id:"bow", name:"Bow", emoji:"🎀", price:3, where:"worn" },
 ];
 const TRICKS = [
   { id:"roll", name:"Roll Over", emoji:"🔄", stars:10 },
@@ -702,6 +721,21 @@ function extrasSVG(type, extras){
   if(extras.includes("hat")){
     const top = g.hy - g.hr;
     out += `<g><ellipse cx="${g.hx}" cy="${top + 6}" rx="26" ry="7" fill="#e63946"/><path d="M${g.hx - 20} ${top + 4} Q${g.hx} ${top - 26} ${g.hx + 20} ${top + 4} Z" fill="#e63946"/><circle cx="${g.hx}" cy="${top - 24}" r="5" fill="#ffd166"/></g>`;
+  }
+  if(extras.includes("starshades")){
+    out += `<g><circle cx="${g.ex - 15}" cy="${g.ey - 1}" r="13" fill="rgba(255,209,102,.35)" stroke="#f4a259" stroke-width="3"/><circle cx="${g.ex + 15}" cy="${g.ey - 1}" r="13" fill="rgba(255,209,102,.35)" stroke="#f4a259" stroke-width="3"/><path d="M${g.ex - 2} ${g.ey - 1} L${g.ex + 2} ${g.ey - 1}" stroke="#f4a259" stroke-width="3"/><path d="M${g.ex - 15} ${g.ey - 18} l1.2 2.6 2.6 1.2 -2.6 1.2 -1.2 2.6 -1.2 -2.6 -2.6 -1.2 2.6 -1.2 Z" fill="#ffd166"/><path d="M${g.ex + 15} ${g.ey - 18} l1.2 2.6 2.6 1.2 -2.6 1.2 -1.2 -2.6 -1.2 -2.6 -2.6 -1.2 2.6 -1.2 Z" fill="#ffd166"/></g>`;
+  }
+  if(extras.includes("crown")){
+    const top = g.hy - g.hr;
+    out += `<g><path d="M${g.hx - 22} ${top + 6} L${g.hx - 22} ${top - 12} L${g.hx - 11} ${top - 2} L${g.hx} ${top - 16} L${g.hx + 11} ${top - 2} L${g.hx + 22} ${top - 12} L${g.hx + 22} ${top + 6} Z" fill="#ffd166" stroke="#e0a800" stroke-width="1.5"/><circle cx="${g.hx - 11}" cy="${top - 1}" r="2.5" fill="#ef476f"/><circle cx="${g.hx}" cy="${top - 6}" r="2.5" fill="#118ab2"/><circle cx="${g.hx + 11}" cy="${top - 1}" r="2.5" fill="#06d6a0"/></g>`;
+  }
+  if(extras.includes("flower")){
+    const fx = g.hx + g.hr * 0.7, fy = g.hy - g.hr * 0.7;
+    out += `<g><circle cx="${fx}" cy="${fy - 8}" r="6" fill="#f48fb1"/><circle cx="${fx + 7}" cy="${fy - 2}" r="6" fill="#f48fb1"/><circle cx="${fx + 4}" cy="${fy + 6}" r="6" fill="#f48fb1"/><circle cx="${fx - 4}" cy="${fy + 6}" r="6" fill="#f48fb1"/><circle cx="${fx - 7}" cy="${fy - 2}" r="6" fill="#f48fb1"/><circle cx="${fx}" cy="${fy}" r="4.5" fill="#ffd166"/></g>`;
+  }
+  if(extras.includes("bow")){
+    const bx = g.hx - g.hr * 0.7, by = g.hy - g.hr * 0.7;
+    out += `<g><path d="M${bx} ${by} L${bx - 16} ${by - 10} L${bx - 16} ${by + 10} Z" fill="#ef6aa5"/><path d="M${bx} ${by} L${bx + 16} ${by - 10} L${bx + 16} ${by + 10} Z" fill="#ef6aa5"/><circle cx="${bx}" cy="${by}" r="5" fill="#d3548e"/></g>`;
   }
   return out;
 }
@@ -1134,7 +1168,7 @@ function blockTap(v){
   const f = focusDisplay();
   if(v === currentFocus()){
     quizActive = false; $("#blocksRow").classList.remove("quiz");
-    bouncePet(); SFX.cheer(); hearts(2);
+    bouncePet(); SFX.cheer(); SFX.giggle(); hearts(2);
     awardStars(1, "for finding it!");
     const next = advanceFocus();
     const nextLine = next !== null ? `<br>Next up: <b>${esc(focusDisplay().text)}</b>!` : "";
@@ -1163,6 +1197,9 @@ function renderFocusInRoom(){
   g.innerHTML = glyphHTML(currentFocus(), t);
   if(t === "shape" || t === "color") g.querySelector("svg,span").style.width = "60px";
   $("#posterCap").textContent = f.cap;
+  const yg = $("#yardGlyph");
+  if(yg){ yg.innerHTML = glyphHTML(currentFocus(), t); if((t === "shape" || t === "color") && yg.querySelector("svg,span")) yg.querySelector("svg,span").style.width = "52px"; }
+  const yc = $("#yardCap"); if(yc) yc.textContent = f.cap;
   const ds = distractors();
   const vals = [currentFocus(), ds[0], ds[1]].filter(x => x !== undefined).sort(()=> Math.random() - .5);
   const cols = ["#ef476f", "#118ab2", "#06d6a0"];
@@ -1233,11 +1270,18 @@ function wornItems(st){
   if(Array.isArray(st.worn)) return st.worn.filter(id => { const it = SHOP_ITEMS.find(x => x.id === id); return it && it.where === "worn"; });
   return (st.items || []).filter(id => { const it = SHOP_ITEMS.find(x => x.id === id); return it && it.where === "worn"; });
 }
+/* One wearable per zone: a crown replaces the hat, star shades replace the
+   sunglasses, and so on — new head/eye items never pile on top of each other. */
+const WEAR_ZONES = { sunglasses:"eyes", starshades:"eyes", hat:"head", crown:"head", flower:"head", bow:"head" };
+function applyWearZones(id){
+  const z = WEAR_ZONES[id]; if(!z || !cur) return;
+  cur.worn = (cur.worn || []).filter(w => WEAR_ZONES[w] !== z || w === id);
+}
 function toggleWorn(id){
   if(!cur) return;
   if(!Array.isArray(cur.worn)) cur.worn = wornItems(cur);
   const i = cur.worn.indexOf(id);
-  if(i >= 0) cur.worn.splice(i, 1); else cur.worn.push(id);
+  if(i >= 0) cur.worn.splice(i, 1); else { applyWearZones(id); cur.worn.push(id); }
   updateMeters(); saveState(); SFX.pop();
   renderShop(); renderSceneItems();
 }
@@ -1335,6 +1379,20 @@ function initSceneTouch(){
     audio(); lastInteract = Date.now();
     if(e.target.closest("#treats") || e.target.closest("#bubble") || e.target.closest(".block") || e.target.closest("#gameTray") || e.target.closest(".wallclock") || e.target.closest(".wallcal")) return;
     if(P.mode === "nap") return;
+    /* Decor taps: handled here, not with click handlers — the scene grabs
+       pointer capture below, which retargets clicks to #scene and meant
+       taps on the slide/doghouse/bed/ball did nothing at all. This runs
+       before the dogInside guard so tapping the house lets the pet out. */
+    const dec = e.target.closest("[data-decor]");
+    if(dec){
+      const kind = dec.dataset.decor;
+      if(kind === "slide" || kind === "doghouse") hideBall();
+      if(kind === "bed") napTime();
+      else if(kind === "slide") playSlide();
+      else if(kind === "doghouse") playDoghouse();
+      else if(kind === "ball") togglePlay();
+      return;
+    }
     if(dogInside) return;
     const onPet = overPet(e, P);
     touch = { onPet, t0: Date.now(), rub: 0, lastX: e.clientX, lastY: e.clientY, moved: false };
@@ -1453,7 +1511,7 @@ function feedChoice(btn, ok){
       fedStudent.stars += 1; fedStudent.earned = earnedOf(fedStudent) + 1; lastStarChange = Date.now();
       petHappy(6); updateMeters(); saveState();
       showToast("⭐ +1 star for eating!");
-      SFX.sparkle(); hearts(2); bouncePet();
+      SFX.sparkle(); SFX.giggle(); hearts(2); bouncePet();
       const f = focusDisplay();
       const next = advanceFocus();
       const nextLine = next !== null ? `<br>Next up: <b>${esc(focusDisplay().text)}</b>!` : "";
@@ -1553,7 +1611,7 @@ function startCountGame(){
   }
   const opts = [{ v: n, ok: true }, { v: ds[0], ok: false }, { v: ds[1], ok: false }].sort(()=> Math.random() - .5);
   gameChoiceBtns(opts.map(o => ({ html: String(o.v), ok: o.ok })), (c, b) => {
-    if(c.ok){ bouncePet(); SFX.cheer(); hearts(2); showBubble(`Yes! ${n} ${names[emoji]}! 🎉`, 2600); setTimeout(closeGameTray, 1600); }
+    if(c.ok){ bouncePet(); SFX.cheer(); SFX.giggle(); hearts(2); showBubble(`Yes! ${n} ${names[emoji]}! 🎉`, 2600); setTimeout(closeGameTray, 1600); }
     else { b.classList.remove("wiggling"); void b.offsetWidth; b.classList.add("wiggling"); SFX.sniff(); showBubble(`Count them again! 👆`, 2000); }
   });
   openGameTray(); SFX.pop();
@@ -1569,7 +1627,7 @@ function startPatternGame(){
   $("#gameShow").innerHTML = `<div>${seq.join(" ")} <span style="color:#d3542e;">?</span></div><div style="font-size:19px;font-weight:bold;color:#6b4423;">What comes next?</div>`;
   const opts = [{ v: A, ok: false }, { v: B, ok: true }, { v: C, ok: false }].sort(()=> Math.random() - .5);
   gameChoiceBtns(opts.map(o => ({ html: o.v, ok: o.ok })), (c, b) => {
-    if(c.ok){ bouncePet(); SFX.cheer(); hearts(2); showBubble(`You got the pattern! 🎉`, 2600); setTimeout(closeGameTray, 1600); }
+    if(c.ok){ bouncePet(); SFX.cheer(); SFX.giggle(); hearts(2); showBubble(`You got the pattern! 🎉`, 2600); setTimeout(closeGameTray, 1600); }
     else { b.classList.remove("wiggling"); void b.offsetWidth; b.classList.add("wiggling"); SFX.sniff(); showBubble(`Look at the pattern again! 🧩`, 2000); }
   });
   openGameTray(); SFX.pop();
@@ -1604,8 +1662,8 @@ function startMemoryGame(){
       if(first.textContent === face){
         first.classList.add("matched"); b.classList.add("matched");
         first = null; matched++;
-        SFX.cheer(); hearts(1);
-        if(matched === 4){ showBubble("You found them all! 🎉", 2600); gameLater(closeGameTray, 2000); }
+        SFX.giggle(); hearts(1);
+        if(matched === 4){ SFX.cheer(); showBubble("You found them all! 🎉", 2600); gameLater(closeGameTray, 2000); }
       } else {
         lock = true; const a = first; first = null; SFX.sniff();
         gameLater(()=>{ a.classList.remove("flipped"); a.textContent = "❓"; b.classList.remove("flipped"); b.textContent = "❓"; lock = false; }, 900);
@@ -1622,7 +1680,7 @@ function startStartsGame(){
   let round = 0;
   const letters = Object.keys(WORD_EMOJI);
   function nextRound(){
-    if(round >= 3){ showBubble("3 in a row — great reading! 🎉", 2600); SFX.cheer(); gameLater(closeGameTray, 1800); return; }
+    if(round >= 3){ showBubble("3 in a row — great reading! 🎉", 2600); SFX.cheer(); SFX.giggle(); gameLater(closeGameTray, 1800); return; }
     round++;
     const L = letters[Math.floor(Math.random() * letters.length)];
     const word = LETTER_WORDS[L];
@@ -1631,7 +1689,7 @@ function startStartsGame(){
     while(ds.length < 2){ const d = letters[Math.floor(Math.random() * letters.length)]; if(d !== L && !ds.includes(d)) ds.push(d); }
     const opts = [{ v: L, ok: true }, { v: ds[0], ok: false }, { v: ds[1], ok: false }].sort(()=> Math.random() - .5);
     gameChoiceBtns(opts.map(o => ({ html: o.v, ok: o.ok })), (c, b) => {
-      if(c.ok){ bouncePet(); SFX.cheer(); hearts(1); showBubble(`Yes! ${L} is for ${word}! 🎉`, 2200); gameLater(nextRound, 1600); }
+      if(c.ok){ bouncePet(); SFX.giggle(); hearts(1); showBubble(`Yes! ${L} is for ${word}! 🎉`, 2200); gameLater(nextRound, 1600); }
       else { b.classList.remove("wiggling"); void b.offsetWidth; b.classList.add("wiggling"); SFX.sniff(); showBubble("Look at the picture again! 👀", 2000); }
     });
   }
@@ -1664,7 +1722,7 @@ function startColorGame(){
       if(b.classList.contains("found")) return;
       if(dot === target.dot){
         b.classList.add("found"); b.textContent = "⭐"; SFX.pop(); found++;
-        if(found === 3){ bouncePet(); SFX.cheer(); hearts(2); showBubble(`All the ${target.name} ones! 🎉`, 2600); gameLater(closeGameTray, 1800); }
+        if(found === 3){ bouncePet(); SFX.cheer(); SFX.giggle(); hearts(2); showBubble(`All the ${target.name} ones! 🎉`, 2600); gameLater(closeGameTray, 1800); }
       } else { b.classList.remove("wiggling"); void b.offsetWidth; b.classList.add("wiggling"); SFX.sniff(); }
     });
     grid.appendChild(b);
@@ -1683,7 +1741,7 @@ function startOddGame(){
   gameKind = "odd";
   let round = 0;
   function nextRound(){
-    if(round >= 3){ showBubble("Great thinking! 🎉", 2600); SFX.cheer(); gameLater(closeGameTray, 1800); return; }
+    if(round >= 3){ showBubble("Great thinking! 🎉", 2600); SFX.cheer(); SFX.giggle(); gameLater(closeGameTray, 1800); return; }
     round++;
     const sets = [...ODD_SETS].sort(()=> Math.random() - .5);
     const main = sets[0], other = sets[1];
@@ -1692,7 +1750,7 @@ function startOddGame(){
     const opts = [...trio.map(v => ({ v, ok: false })), { v: odd, ok: true }].sort(()=> Math.random() - .5);
     $("#gameShow").innerHTML = `<div style="font-size:19px;font-weight:bold;color:#6b4423;">Which one doesn't belong? 🧐<br><span style="font-size:15px;">Round ${round} of 3</span></div>`;
     gameChoiceBtns(opts.map(o => ({ html: o.v, ok: o.ok })), (c, b) => {
-      if(c.ok){ bouncePet(); SFX.cheer(); hearts(1); showBubble("That's the odd one out! 🎉", 2200); gameLater(nextRound, 1600); }
+      if(c.ok){ bouncePet(); SFX.giggle(); hearts(1); showBubble("That's the odd one out! 🎉", 2200); gameLater(nextRound, 1600); }
       else { b.classList.remove("wiggling"); void b.offsetWidth; b.classList.add("wiggling"); SFX.sniff(); showBubble("Look again — three are alike! 👀", 2000); }
     });
   }
@@ -1872,7 +1930,7 @@ function visitPlay(){
   if(r < 0.38){ // a ball appears — they take turns chasing it
     vBall.on = true; vBall.x = 15 + Math.random()*70; vBall.y = 93;
     vBall.chaser = Math.random() < .5 ? "guest" : "host";
-    const b = $("#ball"); b.textContent = "🎾"; b.style.display = "block";
+    const b = $("#ball"); b.textContent = "🏀"; b.style.display = "block";
     b.style.left = vBall.x + "%"; b.style.top = vBall.y + "%";
     vPlay.mode = "ball"; SFX.boing();
   } else if(r < 0.62){ // chase each other
@@ -1982,13 +2040,12 @@ function renderSceneItems(){
     if(it.where === "outdoor" && !indoor){
       if(id === "doghouse") html += `<span class="decor-item big" data-decor="doghouse" style="right:6%;bottom:18%;">🏠</span>`;
       if(id === "slide") html += `<span class="decor-item big" data-decor="slide" style="left:6%;bottom:22%;">🛝</span>`;
-      if(id === "ball") html += `<span class="decor-item" data-decor="ball" style="left:42%;bottom:14%;">🎾</span>`;
+      if(id === "ball") html += `<span class="decor-item" data-decor="ball" style="left:42%;bottom:14%;">🏀</span>`;
     }
   });
   d.innerHTML = html;
-  const bedEl = d.querySelector('[data-decor="bed"]'); if(bedEl) bedEl.addEventListener("click", e => { e.stopPropagation(); napTime(); });
-  const slideEl = d.querySelector('[data-decor="slide"]'); if(slideEl) slideEl.addEventListener("click", e => { e.stopPropagation(); playSlide(); });
-  const houseEl = d.querySelector('[data-decor="doghouse"]'); if(houseEl) houseEl.addEventListener("click", e => { e.stopPropagation(); playDoghouse(); });
+  /* Decor taps are handled in the scene pointerdown handler (see above) —
+     click handlers here never fired because of pointer capture. */
   if(P && P.flip) P.flip.innerHTML = petSVG(cur.pet.type, cur.pet.color, cur.pet.pattern || null, cur.id, wornItems(cur));
 }
 function renderShop(){
@@ -2014,7 +2071,7 @@ function buyShop(id){
   if(cur.stars < it.price){ showToast(`You need ${it.price - cur.stars} more ⭐!`); SFX.sniff(); return; }
   cur.stars -= it.price; cur.items = cur.items || []; cur.items.push(id);
   if(it.where !== "worn"){ if(!Array.isArray(cur.placed)) cur.placed = placedItems(cur); if(!cur.placed.includes(id)) cur.placed.push(id); }
-  if(it.where === "worn" && Array.isArray(cur.worn)) cur.worn.push(id);
+  if(it.where === "worn"){ if(!Array.isArray(cur.worn)) cur.worn = wornItems(cur); applyWearZones(id); if(!cur.worn.includes(id)) cur.worn.push(id); }
   lastStarChange = Date.now();
   updateMeters(); saveState(); SFX.sparkle();
   showToast(`You bought the ${it.name}! ${it.emoji}`);
@@ -2296,6 +2353,7 @@ function sendVisit(){
    ===================================================================== */
 let paradeRAF = null, paradeActors = [], paradeTimer = null, paradeChaser = 0;
 function startParade(){
+  stopParade();
   const a = S.students.find(s => s.id === $("#paradeA").value);
   const b = S.students.find(s => s.id === $("#paradeB").value);
   if(!a || !b || !a.pet || !b.pet){ show("teacher"); return; }
@@ -2339,11 +2397,52 @@ function startParade(){
     paradeRAF = requestAnimationFrame(loop);
   };
   paradeRAF = requestAnimationFrame(loop);
+  startParadeMusic();
+  if(paradeDanceTimer) clearInterval(paradeDanceTimer);
+  paradeDanceTimer = setInterval(paradeDance, 25000);
 }
 function stopParade(){
   if(paradeRAF) cancelAnimationFrame(paradeRAF);
   if(paradeTimer) clearInterval(paradeTimer);
-  paradeRAF = paradeTimer = null; paradeActors = [];
+  stopParadeMusic();
+  if(paradeDanceTimer) clearInterval(paradeDanceTimer);
+  const hoop = $("#paradeHoop"); if(hoop) hoop.style.display = "none";
+  paradeActors.forEach(ac => ac.el.classList.remove("dancing", "rolling", "jumping", "bouncing", "excited"));
+  paradeRAF = paradeTimer = paradeDanceTimer = null; paradeActors = [];
+}
+/* ---------- Phase 6: parade music, dance breaks, joint tricks ---------- */
+let paradeMusicTimer = null, paradeMusicOn = true, paradeDanceTimer = null;
+const PARADE_TUNE = [523, 659, 784, 659, 587, 659, 784, 1047, 784, 659, 587, 523];
+function paradeMusicStep(i){
+  if(!paradeMusicOn || !paradeActors.length){ paradeMusicTimer = null; return; }
+  tone(PARADE_TUNE[i % PARADE_TUNE.length], .22, "triangle", .08);
+  if(i % 4 === 2) tone(196, .18, "sine", .07);
+  paradeMusicTimer = setTimeout(()=> paradeMusicStep(i + 1), 240);
+}
+function startParadeMusic(){ stopParadeMusic(); if(paradeMusicOn) paradeMusicStep(0); }
+function stopParadeMusic(){ if(paradeMusicTimer){ clearTimeout(paradeMusicTimer); paradeMusicTimer = null; } }
+function paradeDance(){
+  if(!paradeActors.length) return;
+  paradeActors.forEach(ac => { ac.el.classList.remove("bouncing", "excited", "dancing"); void ac.el.offsetWidth; ac.el.classList.add("dancing"); });
+  SFX.cheer(); SFX.giggle();
+  for(let i = 0; i < 6; i++) setTimeout(()=>{
+    const h = document.createElement("div"); h.className = "heart"; h.textContent = ["💗","⭐","🎉"][i % 3];
+    h.style.left = (15 + Math.random()*70) + "%"; h.style.top = (40 + Math.random()*30) + "%";
+    const sc = $("#paradeScene"); if(sc) sc.appendChild(h);
+    setTimeout(()=> h.remove(), 1250);
+  }, i * 250);
+  setTimeout(()=> paradeActors.forEach(ac => ac.el.classList.remove("dancing")), 3200);
+}
+function paradeTricks(){
+  if(!paradeActors.length) return;
+  paradeActors.forEach(ac => { ac.el.classList.remove("rolling"); void ac.el.offsetWidth; ac.el.classList.add("rolling"); });
+  SFX.boing();
+  setTimeout(()=>{
+    const hoop = $("#paradeHoop"); if(hoop) hoop.style.display = "block";
+    paradeActors.forEach(ac => { ac.el.classList.remove("jumping"); void ac.el.offsetWidth; ac.el.classList.add("jumping"); });
+    SFX.cheer(); SFX.giggle();
+    setTimeout(()=>{ if(hoop) hoop.style.display = "none"; paradeActors.forEach(ac => ac.el.classList.remove("jumping")); }, 1100);
+  }, 900);
 }
 
 /* =====================================================================
@@ -2423,7 +2522,14 @@ function wire(){
     if(S.students.filter(s => s.pet).length < 2){ alert("At least two students need pets for a parade. Emma and Liam already have pets in the demo!"); return; }
     show("parade");
   });
-  $("#paradeExit").addEventListener("click", ()=>{ renderTeacher(); show("teacher"); });
+  $("#paradeExit").addEventListener("click", ()=>{ stopParade(); renderTeacher(); show("teacher"); });
+  $("#paradeDanceBtn").addEventListener("click", ()=>{ audio(); paradeDance(); });
+  $("#paradeTricksBtn").addEventListener("click", ()=>{ audio(); paradeTricks(); });
+  $("#paradeMusicBtn").addEventListener("click", ()=>{
+    audio(); paradeMusicOn = !paradeMusicOn;
+    $("#paradeMusicBtn").textContent = paradeMusicOn ? "🔊 Music" : "🔇 Music";
+    if(paradeMusicOn) startParadeMusic(); else stopParadeMusic();
+  });
   $("#visitBtn").addEventListener("click", sendVisit);
   $("#addStudentBtn").addEventListener("click", ()=>{
     const nm = $("#newStudentName").value.trim(); if(!nm) return;
