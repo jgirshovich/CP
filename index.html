@@ -110,6 +110,11 @@
     border-radius:50%; opacity:.85;
   }
   .tree { position:absolute; top:16%; right:5%; font-size:110px; display:none; }
+  #scene.outdoor .tree { top:auto; bottom:40%; }
+  .treeshadow { position:absolute; right:7%; bottom:39%; width:110px; height:16px; background:rgba(46,100,30,.35); border-radius:50%; display:none; }
+  #scene.outdoor .treeshadow { display:block; }
+  .yardflower { position:absolute; font-size:34px; display:none; z-index:3; }
+  #scene.outdoor .yardflower { display:block; }
   #scene.outdoor .tree { display:block; }
   #scene.outdoor .window, #scene.outdoor .poster, #scene.outdoor .rug { display:none; }
   .sun { position:absolute; top:5%; right:8%; font-size:64px; display:none; }
@@ -241,6 +246,12 @@
   /* Phase 3 — mini-game tray (counting + pattern), same stage as #treats. */
   #gameTray { position:absolute; z-index:22; bottom:19%; left:50%; transform:translateX(-50%); display:none; flex-direction:column; align-items:center; gap:10px; background:rgba(255,253,244,.94); border:3px solid #ffd9ae; border-radius:16px; padding:12px 16px; max-width:92%; }
   #gameShow { font-size:34px; letter-spacing:4px; text-align:center; }
+  .memgrid { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; justify-items:center; }
+  .gcard { width:54px; height:54px; font-size:30px; border-radius:12px; border:3px solid #ffd9ae; background:#fff; cursor:pointer; }
+  .gcard.flipped { background:#fff6ea; }
+  .gcard.matched { background:#e8f5e9; border-color:#7bc47f; }
+  .gcirc { width:56px; height:56px; font-size:44px; border-radius:50%; border:3px solid #ffd9ae; background:#fff; cursor:pointer; }
+  .gcirc.found { opacity:.35; transform:scale(.85); }
   #gameChoices { display:flex; gap:12px; }
   .gchoice { width:64px; height:64px; border-radius:14px; background:#26a69a; color:#fff; font-size:28px; font-weight:bold; box-shadow:0 4px 0 #00796b; display:flex; align-items:center; justify-content:center; }
   .gchoice:active { transform:scale(.93); }
@@ -257,7 +268,9 @@
   .shoprow .nm, .trickrow .nm { flex:1; text-align:left; font-weight:bold; }
   .shoprow button, .trickrow button { font-size:15px; padding:8px 14px; border-radius:10px; font-weight:bold; background:#ff8a3d; color:#fff; border:none; }
   .shoprow button:disabled, .trickrow button:disabled { background:#d8cbb6; }
-  .decor-item { position:absolute; font-size:58px; z-index:4; line-height:1; }
+  .decor-item { position:absolute; font-size:58px; z-index:4; line-height:1; cursor:pointer; }
+  .decor-item.big { font-size:150px; }
+  .decor-item.med { font-size:110px; }
   #hoop { position:absolute; left:50%; top:34%; width:120px; height:120px; margin-left:-60px; border:10px solid #e63946; border-radius:50%; display:none; z-index:6; }
   @keyframes rollspin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
   .rolling { animation:rollspin .8s ease; }
@@ -374,6 +387,10 @@
     <div class="rug"></div>
     <div class="sun">☀️</div>
     <div class="tree">🌳</div>
+    <div class="treeshadow"></div>
+    <div class="yardflower" style="left:22%;bottom:41%;">🌸</div>
+    <div class="yardflower" style="left:58%;bottom:39%;">🌼</div>
+    <div class="yardflower" style="left:80%;bottom:42%;">🌷</div>
     <div class="blocks" id="blocksRow"></div>
     <div class="bowl" id="bowl"><svg viewBox="0 0 100 60">
       <g id="bowlFood" style="opacity:0;">
@@ -407,7 +424,7 @@
   </div>
   <div class="roompanel" id="shopPanel"><h3>🛍️ Pet Shop</h3><div id="shopRows"></div><div class="center" style="margin-top:8px;"><button class="bigbtn gray small" id="shopClose">Close</button></div></div>
   <div class="roompanel" id="tricksPanel"><h3>🎪 Pet Tricks</h3><p class="note" style="margin:0 0 6px;">Tricks unlock with stars — and tricks are free to do!</p><div id="trickRows"></div><div class="center" style="margin-top:8px;"><button class="bigbtn gray small" id="tricksClose">Close</button></div></div>
-  <div class="roompanel" id="gamesPanel"><h3>🎲 Games</h3><p class="note" style="margin:0 0 8px;">Just for fun — games don't give stars.</p><div class="center" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;"><button class="bigbtn small" id="countGameBtn">🔢 Counting</button><button class="bigbtn small" id="patternGameBtn">🧩 Pattern</button><button class="bigbtn gray small" id="gamesClose">Close</button></div></div>
+  <div class="roompanel" id="gamesPanel"><h3>🎲 Games</h3><p class="note" style="margin:0 0 8px;">Just for fun — games don't give stars.</p><div class="center" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;"><button class="bigbtn small" id="countGameBtn">🔢 Counting</button><button class="bigbtn small" id="patternGameBtn">🧩 Pattern</button><button class="bigbtn small" id="memoryGameBtn">🃏 Memory</button><button class="bigbtn small" id="startsGameBtn">🔤 Starts With</button><button class="bigbtn small" id="colorGameBtn">🎨 Color Hunt</button><button class="bigbtn small" id="oddGameBtn">🧐 Odd One Out</button><button class="bigbtn gray small" id="gamesClose">Close</button></div></div>
   </div>
 </div>
 
@@ -1266,6 +1283,7 @@ function stopPetLoop(){
   if(rafId) cancelAnimationFrame(rafId);
   [decayTimer, idleTimer, pollTimer, visitTimer, wallTimer].forEach(t => t && clearInterval(t));
   rafId = decayTimer = idleTimer = pollTimer = visitTimer = wallTimer = null;
+  stopButterfly();
 }
 function idleBehavior(){
   if(!P || P.mode !== "idle" || $("#treats").style.display === "flex" || $("#gameTray").style.display === "flex") return;
@@ -1317,6 +1335,7 @@ function initSceneTouch(){
     audio(); lastInteract = Date.now();
     if(e.target.closest("#treats") || e.target.closest("#bubble") || e.target.closest(".block") || e.target.closest("#gameTray") || e.target.closest(".wallclock") || e.target.closest(".wallcal")) return;
     if(P.mode === "nap") return;
+    if(dogInside) return;
     const onPet = overPet(e, P);
     touch = { onPet, t0: Date.now(), rub: 0, lastX: e.clientX, lastY: e.clientY, moved: false };
     if(onPet){ P.el.classList.add("petted"); }
@@ -1503,7 +1522,7 @@ function updateWallClock(){
 
 /* ---------- Phase 3: mini-games (counting + pattern, no stars) ---------- */
 let gameKind = null;
-function closeGameTray(){ const t = $("#gameTray"); if(t) t.style.display = "none"; gameKind = null; }
+function closeGameTray(){ const t = $("#gameTray"); if(t) t.style.display = "none"; gameKind = null; gameTimers.forEach(id => clearTimeout(id)); gameTimers = []; }
 function openGameTray(){ const t = $("#gameTray"); t.style.display = "flex"; }
 function gameChoiceBtns(choices, onPick){
   const box = $("#gameChoices"); box.innerHTML = "";
@@ -1556,24 +1575,193 @@ function startPatternGame(){
   openGameTray(); SFX.pop();
 }
 
+
+/* ---------- Phase 4: more mini-games (memory, starts-with, color hunt, odd one out; no stars) ---------- */
+let gameTimers = [];
+function gameLater(fn, ms){ const id = setTimeout(fn, ms); gameTimers.push(id); return id; }
+/* Picture for each LETTER_WORDS word. X is left out on purpose: LETTER_WORDS
+   maps X to "Fox", and Fox does not START with X, so it can't be a round. */
+const WORD_EMOJI = { A:"🍎", B:"⚽", C:"🐱", D:"🐶", E:"🥚", F:"🐟", G:"🍇", H:"🎩", I:"🧊", J:"🧃", K:"🪁", L:"🦁", M:"🌙", N:"🪹", O:"🍊", P:"🐷", Q:"👸", R:"🌧️", S:"☀️", T:"🌳", U:"☂️", V:"🚐", W:"🐳", Y:"🪀", Z:"🦓" };
+function startMemoryGame(){
+  if(!cur || P.mode === "nap") return;
+  resetGameState();
+  gameKind = "memory";
+  const faces = ["🐶","🐱","🐰","🦁","🐷","🍎","🍌","⭐"].sort(()=> Math.random() - .5).slice(0, 4);
+  const cards = [...faces, ...faces].sort(()=> Math.random() - .5);
+  const show = $("#gameShow");
+  show.innerHTML = `<div class="memgrid"></div><div style="font-size:19px;font-weight:bold;color:#6b4423;margin-top:8px;">Find the pairs! 🃏</div>`;
+  const grid = show.querySelector(".memgrid");
+  $("#gameChoices").innerHTML = "";
+  let first = null, lock = false, matched = 0;
+  cards.forEach(face => {
+    const b = document.createElement("button");
+    b.className = "gcard"; b.textContent = "❓";
+    b.addEventListener("click", e => {
+      e.stopPropagation();
+      if(lock || b.classList.contains("flipped") || b.classList.contains("matched")) return;
+      b.classList.add("flipped"); b.textContent = face; SFX.pop();
+      if(!first){ first = b; return; }
+      if(first.textContent === face){
+        first.classList.add("matched"); b.classList.add("matched");
+        first = null; matched++;
+        SFX.cheer(); hearts(1);
+        if(matched === 4){ showBubble("You found them all! 🎉", 2600); gameLater(closeGameTray, 2000); }
+      } else {
+        lock = true; const a = first; first = null; SFX.sniff();
+        gameLater(()=>{ a.classList.remove("flipped"); a.textContent = "❓"; b.classList.remove("flipped"); b.textContent = "❓"; lock = false; }, 900);
+      }
+    });
+    grid.appendChild(b);
+  });
+  openGameTray(); SFX.pop();
+}
+function startStartsGame(){
+  if(!cur || P.mode === "nap") return;
+  resetGameState();
+  gameKind = "starts";
+  let round = 0;
+  const letters = Object.keys(WORD_EMOJI);
+  function nextRound(){
+    if(round >= 3){ showBubble("3 in a row — great reading! 🎉", 2600); SFX.cheer(); gameLater(closeGameTray, 1800); return; }
+    round++;
+    const L = letters[Math.floor(Math.random() * letters.length)];
+    const word = LETTER_WORDS[L];
+    $("#gameShow").innerHTML = `<div style="font-size:64px;">${WORD_EMOJI[L]}</div><div style="font-size:19px;font-weight:bold;color:#6b4423;">${esc(word)} starts with…? 🔤<br><span style="font-size:15px;">Round ${round} of 3</span></div>`;
+    const ds = [];
+    while(ds.length < 2){ const d = letters[Math.floor(Math.random() * letters.length)]; if(d !== L && !ds.includes(d)) ds.push(d); }
+    const opts = [{ v: L, ok: true }, { v: ds[0], ok: false }, { v: ds[1], ok: false }].sort(()=> Math.random() - .5);
+    gameChoiceBtns(opts.map(o => ({ html: o.v, ok: o.ok })), (c, b) => {
+      if(c.ok){ bouncePet(); SFX.cheer(); hearts(1); showBubble(`Yes! ${L} is for ${word}! 🎉`, 2200); gameLater(nextRound, 1600); }
+      else { b.classList.remove("wiggling"); void b.offsetWidth; b.classList.add("wiggling"); SFX.sniff(); showBubble("Look at the picture again! 👀", 2000); }
+    });
+  }
+  nextRound();
+  openGameTray(); SFX.pop();
+}
+const HUNT_COLORS = [
+  { name:"red", dot:"🔴" }, { name:"orange", dot:"🟠" }, { name:"yellow", dot:"🟡" },
+  { name:"green", dot:"🟢" }, { name:"blue", dot:"🔵" }, { name:"purple", dot:"🟣" },
+];
+function startColorGame(){
+  if(!cur || P.mode === "nap") return;
+  resetGameState();
+  gameKind = "color";
+  const target = HUNT_COLORS[Math.floor(Math.random() * HUNT_COLORS.length)];
+  const others = HUNT_COLORS.filter(c => c !== target);
+  const dots = [target.dot, target.dot, target.dot];
+  while(dots.length < 9) dots.push(others[Math.floor(Math.random() * others.length)].dot);
+  dots.sort(()=> Math.random() - .5);
+  let found = 0;
+  const show = $("#gameShow");
+  show.innerHTML = `<div style="font-size:19px;font-weight:bold;color:#6b4423;margin-bottom:8px;">Tap everything that's ${target.name}! 🎨</div><div class="memgrid" style="grid-template-columns:repeat(3, 1fr);"></div>`;
+  const grid = show.querySelector(".memgrid");
+  $("#gameChoices").innerHTML = "";
+  dots.forEach(dot => {
+    const b = document.createElement("button");
+    b.className = "gcirc"; b.textContent = dot;
+    b.addEventListener("click", e => {
+      e.stopPropagation();
+      if(b.classList.contains("found")) return;
+      if(dot === target.dot){
+        b.classList.add("found"); b.textContent = "⭐"; SFX.pop(); found++;
+        if(found === 3){ bouncePet(); SFX.cheer(); hearts(2); showBubble(`All the ${target.name} ones! 🎉`, 2600); gameLater(closeGameTray, 1800); }
+      } else { b.classList.remove("wiggling"); void b.offsetWidth; b.classList.add("wiggling"); SFX.sniff(); }
+    });
+    grid.appendChild(b);
+  });
+  openGameTray(); SFX.pop();
+}
+const ODD_SETS = [
+  { items:["🐶","🐱","🐰","🦁","🐷","🐮"] },
+  { items:["🍎","🍌","🍇","🍓","🍊"] },
+  { items:["🚗","🚕","🚌","🚒","🚑"] },
+  { items:["🍪","🍩","🍦","🧁","🍰"] },
+];
+function startOddGame(){
+  if(!cur || P.mode === "nap") return;
+  resetGameState();
+  gameKind = "odd";
+  let round = 0;
+  function nextRound(){
+    if(round >= 3){ showBubble("Great thinking! 🎉", 2600); SFX.cheer(); gameLater(closeGameTray, 1800); return; }
+    round++;
+    const sets = [...ODD_SETS].sort(()=> Math.random() - .5);
+    const main = sets[0], other = sets[1];
+    const trio = [...main.items].sort(()=> Math.random() - .5).slice(0, 3);
+    const odd = other.items[Math.floor(Math.random() * other.items.length)];
+    const opts = [...trio.map(v => ({ v, ok: false })), { v: odd, ok: true }].sort(()=> Math.random() - .5);
+    $("#gameShow").innerHTML = `<div style="font-size:19px;font-weight:bold;color:#6b4423;">Which one doesn't belong? 🧐<br><span style="font-size:15px;">Round ${round} of 3</span></div>`;
+    gameChoiceBtns(opts.map(o => ({ html: o.v, ok: o.ok })), (c, b) => {
+      if(c.ok){ bouncePet(); SFX.cheer(); hearts(1); showBubble("That's the odd one out! 🎉", 2200); gameLater(nextRound, 1600); }
+      else { b.classList.remove("wiggling"); void b.offsetWidth; b.classList.add("wiggling"); SFX.sniff(); showBubble("Look again — three are alike! 👀", 2000); }
+    });
+  }
+  nextRound();
+  openGameTray(); SFX.pop();
+}
+
 /* ---------- outside / nap ---------- */
+/* ---------- Phase 4: the butterfly actually flies ---------- */
+let bflyTimer = null;
+const BFLY_FLOWERS = [{ l:22, t:52 }, { l:58, t:54 }, { l:80, t:51 }];
+function stopButterfly(){ if(bflyTimer){ clearTimeout(bflyTimer); bflyTimer = null; } }
+function startButterfly(){
+  stopButterfly();
+  const b = $("#bfly"); if(!b) return;
+  const step = () => {
+    if($("#scene").className !== "outdoor"){ bflyTimer = null; return; }
+    let next, delay;
+    if(Math.random() < 0.35){ const f = BFLY_FLOWERS[Math.floor(Math.random() * BFLY_FLOWERS.length)]; next = f; delay = 4200 + Math.random() * 2000; }
+    else { next = { l: 8 + Math.random() * 80, t: 6 + Math.random() * 26 }; delay = 2600 + Math.random() * 2200; }
+    b.style.left = next.l + "%"; b.style.top = next.t + "%";
+    bflyTimer = setTimeout(step, delay);
+  };
+  step();
+}
 function toggleOutside(){
   lastInteract = Date.now();
+  if(dogInside) exitDoghouse(false);
   const sc = $("#scene");
   const goingOut = sc.className !== "outdoor";
   sc.className = goingOut ? "outdoor" : "indoor";
   $("#outBtn").innerHTML = goingOut ? "🏠 Go Inside" : "🌳 Go Outside";
   renderSceneItems();
   if(goingOut){
-    const b = $("#bfly"); b.style.left = "30%"; b.style.top = "26%";
+    startButterfly();
     showBubble("Outside! 🌳<br>Tap the grass and I'll run there!", 2800);
     bouncePet(); SFX.chirp();
+  } else {
+    stopButterfly();
   }
 }
-function napTime(){
-  if(P.mode === "nap") return;
-  lastInteract = Date.now();
-  hideBall(); $("#treats").style.display = "none"; feeding = false; closeGameTray();
+/* ---------- Phase 4: bed naps, slide play, doghouse play ---------- */
+let slideGen = 0; // bumped to cancel an in-progress slide walk (a nap does this)
+let slideBusy = false;
+let dogInside = false;
+let bedNapPending = false;
+/* On-screen rect of a placed decor item, converted to pet feet coordinates. */
+function decorScenePos(id){
+  const sc = $("#scene").getBoundingClientRect();
+  const el = document.querySelector(`[data-decor="${id}"]`);
+  if(!el) return null;
+  const r = el.getBoundingClientRect();
+  return { x: clamp((r.left + r.width / 2 - sc.left) / sc.width * 100, 6, 94),
+           y: clamp((r.bottom - sc.top) / sc.height * 100, 62, 97) };
+}
+/* Walk-watcher in the feeding pattern: fires done() once on arrival, or on
+   the walk-time fallback — never twice. A gen aborts if slideGen moved. */
+function waitForArrival(tx, ty, gen, done){
+  let finished = false;
+  const run = ()=>{ if(finished) return; finished = true; done(); };
+  const watcher = setInterval(()=>{
+    if(gen !== undefined && gen !== slideGen){ clearInterval(watcher); return; }
+    if(Math.abs(P.x - tx) < 4 && Math.abs(P.y - ty) < 3.5){ clearInterval(watcher); run(); }
+  }, 120);
+  const walkSecs = Math.max(Math.abs(P.x - tx) / 30, Math.abs(P.y - ty) / 16.5);
+  setTimeout(()=>{ clearInterval(watcher); if(gen === undefined || gen === slideGen) run(); }, clamp((walkSecs + 0.8) * 1000, 2600, 6000));
+}
+function startNap(){
+  bedNapPending = false;
   P.mode = "nap"; P.el.classList.add("sleepy");
   showBubble("😴 Nap time…", 2000); SFX.snore();
   let n = 0;
@@ -1583,6 +1771,71 @@ function napTime(){
     petHappy(7); bouncePet(); SFX.chirp();
     showBubble("I feel GREAT! 🌟", 2400);
   }, 4200);
+}
+function napTime(){
+  if(!P || P.mode === "nap" || bedNapPending) return;
+  lastInteract = Date.now();
+  hideBall(); $("#treats").style.display = "none"; feeding = false; closeGameTray();
+  slideGen++; slideBusy = false; // a nap cancels any slide walk in progress
+  if(dogInside) exitDoghouse(false);
+  const indoor = $("#scene").className === "indoor";
+  const bed = indoor && placedItems(cur).includes("bed") ? decorScenePos("bed") : null;
+  if(bed){
+    bedNapPending = true;
+    P.tx = bed.x; P.ty = bed.y;
+    waitForArrival(bed.x, bed.y, undefined, ()=>{
+      P.x = bed.x; P.y = bed.y; placeActor(P);
+      startNap();
+    });
+  } else {
+    startNap();
+  }
+}
+function exitDoghouse(announce){
+  if(!dogInside) return;
+  dogInside = false;
+  const door = decorScenePos("doghouse");
+  if(P && P.el) P.el.style.display = "";
+  if(door && P){ P.x = door.x; P.y = door.y; P.tx = door.x + 8; P.ty = door.y; placeActor(P); }
+  if(announce !== false){ bouncePet(); showBubble("Here I am! 🏠", 2200); }
+}
+function playDoghouse(){
+  if(!cur || !P || P.mode === "nap") return;
+  if(dogInside){ exitDoghouse(true); return; }
+  const door = decorScenePos("doghouse"); if(!door) return;
+  lastInteract = Date.now(); closeGameTray();
+  P.tx = door.x; P.ty = door.y;
+  waitForArrival(door.x, door.y, undefined, ()=>{
+    dogInside = true;
+    P.el.style.display = "none";
+    SFX.pop();
+    showBubble("I'm home! 🏠", 2400);
+  });
+}
+function playSlide(){
+  if(!cur || !P || P.mode === "nap") return;
+  if(dogInside){ showBubble("I'm inside! Tap my house to come out! 🏠", 2200); return; }
+  if(slideBusy) return;
+  const base = decorScenePos("slide"); if(!base) return;
+  lastInteract = Date.now(); closeGameTray();
+  slideBusy = true; const gen = ++slideGen;
+  const sc = $("#scene").getBoundingClientRect();
+  const el = document.querySelector('[data-decor="slide"]');
+  const r = el.getBoundingClientRect();
+  const top = { x: clamp((r.left + r.width * 0.2 - sc.left) / sc.width * 100, 6, 94),
+                y: clamp((r.top + r.height * 0.45 - sc.top) / sc.height * 100, 62, 97) };
+  P.tx = base.x; P.ty = base.y;
+  waitForArrival(base.x, base.y, gen, ()=>{
+    P.tx = top.x; P.ty = top.y; // climb up
+    waitForArrival(top.x, top.y, gen, ()=>{
+      SFX.boing();
+      P.tx = base.x; P.ty = base.y; // whee, down!
+      waitForArrival(base.x, base.y, gen, ()=>{
+        slideBusy = false; bouncePet(); hearts(1);
+        showBubble("Wheee! 🛝", 2200);
+      });
+    });
+  });
 }
 
 /* ---------- visits (a friend's pet comes to play) ---------- */
@@ -1684,8 +1937,13 @@ async function pollSettings(){
           updateMeters();
           if(gained){ showToast(`⭐ Good job, ${cur.name}! You earned a star!`); SFX.sparkle(); }
         }
+        if(fresh.pet && cur.pet && fresh.pet.name && fresh.pet.name !== cur.pet.name){
+          cur.pet.name = fresh.pet.name;
+          const nt = P && P.el ? P.el.querySelector(".nametag") : null;
+          if(nt) nt.textContent = fresh.pet.name;
+        }
         if(fresh.pet === null && cur.pet){
-          cur.pet = null; cur.items = []; cur.worn = [];
+          cur.pet = null; cur.items = []; cur.worn = []; cur.placed = [];
           showToast(`Your teacher gave you a brand-new pet!`);
           startCreate(cur.id);
         }
@@ -1697,20 +1955,40 @@ async function pollSettings(){
 /* =====================================================================
    SHOP + TRICKS + CLASS GOAL
    ===================================================================== */
+/* Phase 4: "placed" = shop decor actually out in the room. Older saves have
+   no placed list, so they fall back to every owned decor item — nothing a
+   student already bought ever vanishes from their room. */
+function placedItems(st){
+  if(Array.isArray(st.placed)) return st.placed;
+  return (st.items || []).filter(id => { const it = SHOP_ITEMS.find(x => x.id === id); return it && it.where !== "worn"; });
+}
+function togglePlaced(id){
+  if(!cur) return;
+  if(!Array.isArray(cur.placed)) cur.placed = placedItems(cur);
+  const i = cur.placed.indexOf(id);
+  const removed = i >= 0;
+  if(removed) cur.placed.splice(i, 1); else cur.placed.push(id);
+  updateMeters(); saveState(); SFX.pop();
+  showToast(removed ? "Put away! 📦" : "Put out! ✨");
+  renderShop(); renderSceneItems();
+}
 function renderSceneItems(){
   const d = $("#decor"); if(!d || !cur) return;
   const indoor = $("#scene").className === "indoor";
   let html = "";
-  (cur.items || []).forEach(id => {
+  placedItems(cur).forEach(id => {
     const it = SHOP_ITEMS.find(x => x.id === id); if(!it) return;
-    if(it.where === "indoor" && indoor && id === "bed") html += `<span class="decor-item" style="left:10%;bottom:20%;">🛏️</span>`;
+    if(it.where === "indoor" && indoor && id === "bed") html += `<span class="decor-item med" data-decor="bed" style="left:10%;bottom:20%;">🛏️</span>`;
     if(it.where === "outdoor" && !indoor){
-      if(id === "doghouse") html += `<span class="decor-item" style="right:6%;bottom:18%;">🏠</span>`;
-      if(id === "slide") html += `<span class="decor-item" style="left:6%;bottom:22%;">🛝</span>`;
-      if(id === "ball") html += `<span class="decor-item" style="left:42%;bottom:14%;">🎾</span>`;
+      if(id === "doghouse") html += `<span class="decor-item big" data-decor="doghouse" style="right:6%;bottom:18%;">🏠</span>`;
+      if(id === "slide") html += `<span class="decor-item big" data-decor="slide" style="left:6%;bottom:22%;">🛝</span>`;
+      if(id === "ball") html += `<span class="decor-item" data-decor="ball" style="left:42%;bottom:14%;">🎾</span>`;
     }
   });
   d.innerHTML = html;
+  const bedEl = d.querySelector('[data-decor="bed"]'); if(bedEl) bedEl.addEventListener("click", e => { e.stopPropagation(); napTime(); });
+  const slideEl = d.querySelector('[data-decor="slide"]'); if(slideEl) slideEl.addEventListener("click", e => { e.stopPropagation(); playSlide(); });
+  const houseEl = d.querySelector('[data-decor="doghouse"]'); if(houseEl) houseEl.addEventListener("click", e => { e.stopPropagation(); playDoghouse(); });
   if(P && P.flip) P.flip.innerHTML = petSVG(cur.pet.type, cur.pet.color, cur.pet.pattern || null, cur.id, wornItems(cur));
 }
 function renderShop(){
@@ -1722,9 +2000,11 @@ function renderShop(){
     const b = document.createElement("button");
     const isWornItem = it.where === "worn";
     const currentlyWorn = isWornItem && owned && wornItems(cur).includes(it.id);
-    b.textContent = !owned ? "Buy" : isWornItem ? (currentlyWorn ? "Take off" : "Put on") : "Owned ✓";
+    const isDecor = it.where !== "worn";
+    const currentlyPlaced = isDecor && owned && placedItems(cur).includes(it.id);
+    b.textContent = !owned ? "Buy" : isWornItem ? (currentlyWorn ? "Take off" : "Put on") : (currentlyPlaced ? "Put away" : "Put out");
     b.disabled = !owned && cur.stars < it.price;
-    b.addEventListener("click", ()=> owned && isWornItem ? toggleWorn(it.id) : buyShop(it.id));
+    b.addEventListener("click", ()=> owned && isWornItem ? toggleWorn(it.id) : owned && isDecor ? togglePlaced(it.id) : buyShop(it.id));
     row.appendChild(b); rows.appendChild(row);
   });
 }
@@ -1733,6 +2013,7 @@ function buyShop(id){
   if((cur.items || []).includes(id)) return;
   if(cur.stars < it.price){ showToast(`You need ${it.price - cur.stars} more ⭐!`); SFX.sniff(); return; }
   cur.stars -= it.price; cur.items = cur.items || []; cur.items.push(id);
+  if(it.where !== "worn"){ if(!Array.isArray(cur.placed)) cur.placed = placedItems(cur); if(!cur.placed.includes(id)) cur.placed.push(id); }
   if(it.where === "worn" && Array.isArray(cur.worn)) cur.worn.push(id);
   lastStarChange = Date.now();
   updateMeters(); saveState(); SFX.sparkle();
@@ -1984,6 +2265,7 @@ function renderRoster(){
         ${st.pet ? `<button data-act="visit">Visit pet</button>` : `<button data-act="create">Make pet</button>`}
         <button data-act="star">⭐ +1</button>
         ${st.pet ? `<button data-act="newpet">New pet</button>` : ""}
+        ${st.pet ? `<button data-act="rename">✏️ Rename pet</button>` : ""}
         <button data-act="remove" class="danger">Remove</button>
       </div>`;
     card.querySelectorAll("button").forEach(b => b.addEventListener("click", ()=>{
@@ -1991,7 +2273,8 @@ function renderRoster(){
       if(act === "star"){ giveStar(st); }
       if(act === "visit"){ openPetRoom(st.id); }
       if(act === "create"){ startCreate(st.id); }
-      if(act === "newpet"){ if(confirm(`Give ${st.name} a brand-new pet? Their current pet will be cleared.`)){ st.pet = null; st.stars = 0; st.earned = 0; st.items = []; st.worn = []; if(CONNECTED) gasPost({ action:"resetPet", id: st.id }).catch(()=>{}); renderTeacher(); renderHome(); } }
+      if(act === "newpet"){ if(confirm(`Give ${st.name} a brand-new pet? Their current pet will be cleared.`)){ st.pet = null; st.stars = 0; st.earned = 0; st.items = []; st.worn = []; st.placed = []; if(CONNECTED) gasPost({ action:"resetPet", id: st.id }).catch(()=>{}); renderTeacher(); renderHome(); } }
+      if(act === "rename"){ const nn = prompt(`New name for ${st.pet.name}?`, st.pet.name); if(nn === null) return; const nm = nn.trim(); if(!nm){ alert("The pet needs a name!"); return; } if(nm.length > 14){ alert("Pet names are 14 letters or less."); return; } st.pet.name = nm; if(CONNECTED) gasPost({ action:"renamePet", id: st.id, petName: nm }).catch(()=>{}); saveState(); renderTeacher(); }
       if(act === "remove"){ if(confirm(`Remove ${st.name} from the class list?`)){ S.students = S.students.filter(x => x.id !== st.id); if(CONNECTED) gasPost({ action:"removeStudents", ids:[st.id] }).catch(()=>{}); saveState(); renderTeacher(); renderHome(); } }
     }));
     g.appendChild(card);
@@ -2101,6 +2384,10 @@ function wire(){
   $("#quizBtn").addEventListener("click", ()=>{ audio(); startQuiz(); });
   $("#gamesBtn").addEventListener("click", ()=>{ audio(); togglePanel("gamesPanel"); });
   $("#gamesClose").addEventListener("click", ()=> $("#gamesPanel").classList.remove("open"));
+  $("#memoryGameBtn").addEventListener("click", ()=>{ audio(); startMemoryGame(); });
+  $("#startsGameBtn").addEventListener("click", ()=>{ audio(); startStartsGame(); });
+  $("#colorGameBtn").addEventListener("click", ()=>{ audio(); startColorGame(); });
+  $("#oddGameBtn").addEventListener("click", ()=>{ audio(); startOddGame(); });
   $("#countGameBtn").addEventListener("click", ()=>{ audio(); startCountGame(); });
   $("#patternGameBtn").addEventListener("click", ()=>{ audio(); startPatternGame(); });
   $("#gameClose").addEventListener("click", ()=>{ audio(); closeGameTray(); });
