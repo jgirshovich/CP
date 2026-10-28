@@ -495,8 +495,8 @@
 
     <div class="panel">
       <h3>📝 Add the Class List</h3>
-      <p class="note" style="margin:0 0 8px;">Type or paste student names — one per line, or separated by commas. Each student gets an egg to hatch when they create their pet.</p>
-      <textarea id="bulkNames" rows="5" placeholder="Emma&#10;Liam&#10;Ava&#10;…" style="width:100%; font-family:inherit; font-size:16px; padding:10px; border:2px solid #ffd9ae; border-radius:11px; color:#4a3728;"></textarea>
+      <p class="note" style="margin:0 0 8px;">One per line: <b>Name, email</b> — for example, Emma, emma@school.org. Each student gets an egg to hatch when they create their pet. Re-pasting a name that's already listed updates that student's email instead of adding a duplicate.</p>
+      <textarea id="bulkNames" rows="5" placeholder="Emma, emma@school.org&#10;Liam, liam@school.org&#10;Ava&#10;…" style="width:100%; font-family:inherit; font-size:16px; padding:10px; border:2px solid #ffd9ae; border-radius:11px; color:#4a3728;"></textarea>
       <div class="rowflex" style="margin-top:8px;">
         <button class="bigbtn green small" id="bulkAddBtn">＋ Add These Students</button>
         <span id="bulkMsg" style="font-weight:bold; color:#4e9a51;"></span>
@@ -507,6 +507,7 @@
       <h3>🔗 Student Links</h3>
       <p class="note" style="margin:0 0 8px;">Each student gets their own link — it opens <b>only their pet</b> (or their egg, to create it). Add it to their iPad as a home-screen shortcut and they'll never see another student's pet. The app address below is where this app lives online; it's filled in for you on the hosted page.</p>
       <div class="rowflex"><span style="font-weight:bold;">App address:</span><input class="textin" id="appBaseInput" style="flex:1; min-width:240px;"></div>
+      <div class="rowflex" style="margin-top:10px;"><button class="bigbtn green small" id="sendAllBtn">✉️ Send All Links</button><span id="linksStatus" style="font-weight:bold; color:#4e9a51;"></span></div>
       <div id="linksList" style="margin-top:10px;"></div>
     </div>
 
@@ -2168,38 +2169,91 @@ function renderLinks(){
   const inp = $("#appBaseInput"); if(!inp) return;
   inp.value = appBase();
   const box = $("#linksList"); box.innerHTML = "";
-  const mkRow = (label, link, bold) => {
+  const mkRow = (label, link, bold, st) => {
     const row = document.createElement("div");
     row.className = "rowflex"; row.style.marginBottom = "7px";
-    row.innerHTML = `<span style="min-width:110px; ${bold ? "font-weight:bold;" : ""}">${esc(label)}</span>
-      <input class="textin" readonly value="${esc(link)}" style="flex:1; min-width:220px; font-size:13px;">
-      <button class="bigbtn blue small">Copy</button>`;
-    row.querySelector("button").addEventListener("click", ev => {
-      const field = row.querySelector("input");
+    const emailCell = st ? `<input class="textin emailin" value="${esc(st.email || "")}" placeholder="Add email…" style="font-size:12px; padding:4px 8px; width:190px; margin-top:3px;">` : "";
+    const usable = st && st.email && st.email.includes("@") && CONNECTED;
+    const sendTitle = !CONNECTED ? "Connect the class sheet to send email" : (!st || !st.email ? "Add an email first" : "Email this student their link");
+    const sendCell = st ? `<button class="bigbtn green small" ${usable ? "" : "disabled"} title="${sendTitle}">Send</button>` : "";
+    row.innerHTML = `<div style="min-width:200px; ${bold ? "font-weight:bold;" : ""}"><div>${esc(label)}</div>${emailCell}</div>
+      <input class="textin linkin" readonly value="${esc(link)}" style="flex:1; min-width:220px; font-size:13px;">
+      <button class="bigbtn blue small">Copy</button>${sendCell}`;
+    const btns = row.querySelectorAll("button");
+    btns[0].addEventListener("click", ev => {
+      const field = row.querySelector(".linkin");
       const done = ()=>{ ev.target.textContent = "Copied! ✓"; setTimeout(()=> ev.target.textContent = "Copy", 1600); };
       if(navigator.clipboard && navigator.clipboard.writeText)
         navigator.clipboard.writeText(field.value).then(done).catch(()=>{ field.select(); document.execCommand("copy"); done(); });
       else { field.select(); document.execCommand("copy"); done(); }
     });
+    if(st){
+      row.querySelector(".emailin").addEventListener("change", ev => { st.email = ev.target.value.trim(); saveState(); renderLinks(); });
+      btns[1].addEventListener("click", ev => sendStudentLink(st, ev.target));
+    }
     box.appendChild(row);
   };
   mkRow("🍎 Teacher", buildLink("view=teacher"), true);
-  S.students.forEach(st => mkRow(st.name, buildLink("student=" + st.id), false));
+  S.students.forEach(st => mkRow(st.name, buildLink("student=" + st.id), false, st));
+  if(!CONNECTED){ const ls = $("#linksStatus"); if(ls) ls.textContent = "Email sending is available once the app is connected to the class sheet."; }
 }
 function bulkAddStudents(){
   const raw = $("#bulkNames").value || "";
-  const names = raw.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
-  const existing = new Set(S.students.map(s => s.name.toLowerCase()));
-  let added = 0;
-  names.forEach(nm => {
-    if(existing.has(nm.toLowerCase())) return;
-    existing.add(nm.toLowerCase());
-    S.students.push({ id: uid(), name: nm, pet: null, hunger: 75, happiness: 80, stars: 0, earned: 0, items: [] });
-    added++;
+  const lines = raw.split("\n").map(x => x.trim()).filter(Boolean);
+  const byName = new Map();
+  S.students.forEach(s => {
+    const k = s.name.toLowerCase();
+    if(!byName.has(k)) byName.set(k, []);
+    byName.get(k).push(s);
+  });
+  let added = 0, updated = 0; const ambiguous = [];
+  lines.forEach(line => {
+    const comma = line.indexOf(",");
+    const nm = (comma < 0 ? line : line.slice(0, comma)).trim();
+    const em = (comma < 0 ? "" : line.slice(comma + 1).trim());
+    if(!nm) return;
+    const matches = byName.get(nm.toLowerCase()) || [];
+    if(matches.length === 1){
+      if(em && matches[0].email !== em){ matches[0].email = em; updated++; }
+    } else if(matches.length > 1){
+      if(!ambiguous.includes(nm)) ambiguous.push(nm);
+    } else {
+      S.students.push({ id: uid(), name: nm, email: em, pet: null, hunger: 75, happiness: 80, stars: 0, earned: 0, items: [] });
+      byName.set(nm.toLowerCase(), [S.students[S.students.length - 1]]);
+      added++;
+    }
   });
   $("#bulkNames").value = "";
-  $("#bulkMsg").textContent = added ? `Added ${added} student${added === 1 ? "" : "s"}! ✓` : "No new names (duplicates skipped).";
+  const parts = [];
+  if(added) parts.push(`Added ${added} student${added === 1 ? "" : "s"}`);
+  if(updated) parts.push(`Updated email for ${updated}`);
+  if(ambiguous.length) parts.push(`Skipped ${ambiguous.join(", ")} — that name matches more than one student, so add their emails in their link rows below`);
+  $("#bulkMsg").textContent = parts.length ? parts.join(". ") + ". ✓" : "No new names (duplicates skipped).";
   saveState(); renderTeacher(); renderHome();
+}
+/* ---------- Phase 7: email the class links ---------- */
+function sendStudentLink(st, btn){
+  const status = $("#linksStatus");
+  if(!CONNECTED){ if(status) status.textContent = "Email sending needs the connected class sheet — open the app from your class link."; return; }
+  if(!st.email) return; // the button is disabled without an email
+  const link = buildLink("student=" + st.id);
+  if(btn){ btn.disabled = true; btn.textContent = "Sending…"; }
+  gasPost({ action:"sendLinks", recipients:[{ id: st.id, name: st.name, email: st.email, link }] })
+    .then(()=>{ if(btn) btn.textContent = "Sent ✓"; setTimeout(()=>{ if(btn){ btn.disabled = false; btn.textContent = "Send"; } }, 2000); if(status) status.textContent = `Link sent to ${st.name}. ✓`; })
+    .catch(()=>{ if(btn){ btn.disabled = false; btn.textContent = "Send"; } if(status) status.textContent = `Couldn't send to ${st.name} — check the connection and try again.`; });
+}
+function sendAllLinks(){
+  const status = $("#linksStatus");
+  if(!CONNECTED){ if(status) status.textContent = "Email sending needs the connected class sheet — open the app from your class link."; return; }
+  const usable = s => s.email && s.email.includes("@");
+  const withEmail = S.students.filter(usable);
+  const missing = S.students.filter(s => !usable(s));
+  if(!withEmail.length){ if(status) status.textContent = "No students have emails yet — add them in the class list box above (Name, email)."; return; }
+  if(!confirm(`Send each of these ${withEmail.length} students their own personal pet link?${missing.length ? `\n${missing.length} without a usable email will be skipped: ${missing.map(s => s.name).join(", ")}` : ""}`)) return;
+  const btn = $("#sendAllBtn"); btn.disabled = true; btn.textContent = "Sending…";
+  gasPost({ action:"sendLinks", recipients: withEmail.map(s => ({ id: s.id, name: s.name, email: s.email, link: buildLink("student=" + s.id) })) })
+    .then(()=>{ if(status) status.textContent = `Sent ${withEmail.length} link${withEmail.length === 1 ? "" : "s"}. ✓${missing.length ? ` Skipped (no usable email): ${missing.map(s => s.name).join(", ")}.` : ""}`; btn.disabled = false; btn.textContent = "✉️ Send All Links"; })
+    .catch(()=>{ if(status) status.textContent = "Couldn't send — check the connection and try again."; btn.disabled = false; btn.textContent = "✉️ Send All Links"; });
 }
 function renderFocusControls(){
   const t = S.settings.focusType;
@@ -2540,6 +2594,7 @@ function wire(){
   $("#addWordBtn").addEventListener("click", addCustomWord);
   $("#newWordInput").addEventListener("keydown", e => { if(e.key === "Enter") addCustomWord(); });
   $("#bulkAddBtn").addEventListener("click", bulkAddStudents);
+  $("#sendAllBtn").addEventListener("click", sendAllLinks);
   $("#appBaseInput").addEventListener("change", e => {
     S.settings.appBase = e.target.value.trim(); saveState(); renderLinks();
   });
