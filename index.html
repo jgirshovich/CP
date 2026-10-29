@@ -446,6 +446,7 @@
     <div class="spacer"></div>
     <span id="syncStatus"></span>
   </div>
+  <div id="scriptVersionNote" style="display:none; margin:0 0 12px; padding:10px 14px; border-radius:10px; background:#fff3cd; border:1px solid #e6c87a; font-size:14px;"></div>
   <div class="teach-wrap">
 
     <div class="panel">
@@ -530,12 +531,14 @@
       <div class="roster" id="rosterGrid"></div>
       <div class="rowflex" style="margin-top:14px;">
         <input class="textin" id="newStudentName" placeholder="New student's name">
+        <input class="textin" id="newStudentEmail" placeholder="Email (optional)">
         <button class="bigbtn green small" id="addStudentBtn">＋ Add Student</button>
         <button class="bigbtn gray small" id="resetDemoBtn">Reset Demo Data</button>
         <button class="bigbtn gray small" id="newYearBtn">🗓️ Start new school year</button>
       </div>
       <p class="note">Tap “Visit” on a card to open that student's pet room on this screen.
-      “New pet” clears a student's pet so they can create a new one.</p>
+      “New pet” clears a student's pet so they can create a new one.
+      Adding a name here always creates a new student — to add an email to a student already on the roster, use the Add Class List box above (Name, email) or their link row below.</p>
     </div>
 
   </div>
@@ -854,6 +857,22 @@ function demoState(){
 }
 let S = null;
 
+/* ---------- Phase 8: script-version banner ---------- */
+/* The page and the sheet script deploy separately, and a Send click posts
+   with no-cors, so an old script silently swallows a sendLinks post while
+   the app still reports "Sent". The script stamps its version on every
+   state load; if it is older than this page, warn the teacher here instead
+   of letting email fail silently. */
+const PAGE_SCRIPT_VERSION = 8;
+function checkScriptVersion(v){
+  const note = $("#scriptVersionNote"); if(!note) return;
+  if(v === undefined || v === null || v < PAGE_SCRIPT_VERSION){
+    note.textContent = "Heads up: the class sheet script is older than this page, so email sending won't work until you update it — in Apps Script, paste the new Code file, then Manage deployments → New version → Deploy. (The page file alone is not enough.)";
+    note.style.display = "";
+  } else {
+    note.style.display = "none";
+  }
+}
 async function loadState(){
   if(CONNECTED){
     try{
@@ -865,6 +884,7 @@ async function loadState(){
         // is only for the standalone, unconnected demo).
         S = data.students ? data : { students: [], settings: data.settings };
         setSync("☁️ Connected to your Google Sheet");
+        checkScriptVersion(data.scriptVersion);
       }
     }catch(e){ /* fall through to local */ }
     if(!S) setSync("⚠️ Sheet not reachable — using this device only");
@@ -2176,9 +2196,10 @@ function renderLinks(){
     const usable = st && st.email && st.email.includes("@") && CONNECTED;
     const sendTitle = !CONNECTED ? "Connect the class sheet to send email" : (!st || !st.email ? "Add an email first" : "Email this student their link");
     const sendCell = st ? `<button class="bigbtn green small" ${usable ? "" : "disabled"} title="${sendTitle}">Send</button>` : "";
+    const removeCell = st ? `<button class="bigbtn gray small">Remove</button>` : "";
     row.innerHTML = `<div style="min-width:200px; ${bold ? "font-weight:bold;" : ""}"><div>${esc(label)}</div>${emailCell}</div>
       <input class="textin linkin" readonly value="${esc(link)}" style="flex:1; min-width:220px; font-size:13px;">
-      <button class="bigbtn blue small">Copy</button>${sendCell}`;
+      <button class="bigbtn blue small">Copy</button>${sendCell}${removeCell}`;
     const btns = row.querySelectorAll("button");
     btns[0].addEventListener("click", ev => {
       const field = row.querySelector(".linkin");
@@ -2190,6 +2211,12 @@ function renderLinks(){
     if(st){
       row.querySelector(".emailin").addEventListener("change", ev => { st.email = ev.target.value.trim(); saveState(); renderLinks(); });
       btns[1].addEventListener("click", ev => sendStudentLink(st, ev.target));
+      btns[2].addEventListener("click", () => {
+        if(!confirm(`Remove ${st.name} from the class list? Their pet, stars, and shop items will be removed too.`)) return;
+        S.students = S.students.filter(x => x.id !== st.id);
+        if(CONNECTED) gasPost({ action:"removeStudents", ids:[st.id] }).catch(()=>{});
+        saveState(); renderTeacher(); renderHome();
+      });
     }
     box.appendChild(row);
   };
@@ -2587,8 +2614,10 @@ function wire(){
   $("#visitBtn").addEventListener("click", sendVisit);
   $("#addStudentBtn").addEventListener("click", ()=>{
     const nm = $("#newStudentName").value.trim(); if(!nm) return;
-    S.students.push({ id: uid(), name: nm, pet: null, hunger: 75, happiness: 80, stars: 0, earned: 0, items: [] });
+    const em = ($("#newStudentEmail").value || "").trim();
+    S.students.push({ id: uid(), name: nm, email: em, pet: null, hunger: 75, happiness: 80, stars: 0, earned: 0, items: [] });
     $("#newStudentName").value = "";
+    $("#newStudentEmail").value = "";
     saveState(); renderTeacher(); renderHome();
   });
   $("#addWordBtn").addEventListener("click", addCustomWord);
