@@ -445,7 +445,7 @@
   <div class="topbar">
     <button class="bigbtn gray small" id="teachHomeBtn">⬅ Class Pets</button>
     <h1>🍎 Teacher Dashboard</h1>
-    <p class="note" style="margin-top:-10px;">App version 11 — if this line is missing, the page on screen is older than the deploy.</p>
+    <p class="note" style="margin-top:-10px;">App version 12 — if this line is missing, the page on screen is older than the deploy.</p>
     <div class="spacer"></div>
     <span id="syncStatus"></span>
   </div>
@@ -473,7 +473,7 @@
         <button class="bigbtn green small" id="setAddBtn">＋ Add to set</button>
         <span id="setChips" style="font-size:14px; color:#8a6d4f;"></span>
       </div>
-      <p class="note" id="setNote">Rooms cycle through this set in order — a correct Find It or Feed moves to the next item. Click an item above to practice just that one, or tap a chip to start the set there. A set can mix kinds — add letters, numbers, shapes, colors, or words to the same set. The Kind above picks which set the rooms use.</p>
+      <p class="note" id="setNote">Click the items above to build the set — click an item again to take it out. Rooms cycle through this set in order — a correct Find It or Feed moves to the next item. Tap a chip to start the set at that item. A set can mix kinds — add letters, numbers, shapes, colors, or words to the same set. The Kind above picks which set the rooms use.</p>
       <div class="rowflex" id="wordAddRow" style="display:none; margin-top:4px;">
         <input class="textin" id="newWordInput" placeholder="Add your own sight word" style="width:220px;">
         <button class="bigbtn green small" id="addWordBtn">＋ Add Word</button>
@@ -873,7 +873,7 @@ let S = null;
    the app still reports "Sent". The script stamps its version on every
    state load; if it is older than this page, warn the teacher here instead
    of letting email fail silently. */
-const PAGE_SCRIPT_VERSION = 11;
+const PAGE_SCRIPT_VERSION = 12;
 function checkScriptVersion(v){
   const note = $("#scriptVersionNote"); if(!note) return;
   if(v === undefined || v === null || v < PAGE_SCRIPT_VERSION){
@@ -2353,12 +2353,26 @@ function renderFocusControls(){
   renderCustomWordsList();
   renderSetEditor();
   const box = $("#focusBtns"); box.innerHTML = "";
+  /* Phase 12 — the item buttons BUILD the set: tapping an item adds it,
+     tapping it again takes it out. Before this, every tap REPLACED the
+     whole set with just that one item, so tapping A then B left only B
+     — the teacher could never build a set from the buttons at all.
+     The last item cannot be removed (a set is never empty); the
+     highlight now marks set membership, not just the current item. */
   const mkBtn = (label, val, html) => {
     const b = document.createElement("button");
     if(html) b.innerHTML = html; else b.textContent = label;
-    const ci = currentFocusItem();
-    if(ci.v === val && ci.k === t) b.className = "sel";
-    b.addEventListener("click", ()=>{ setFocusSet([{ k: t, v: val }]); SFX.pop(); renderFocusControls(); });
+    if(focusSetOf().some(i => i.k === t && i.v === val)) b.className = "sel";
+    b.addEventListener("click", ()=>{
+      const set = focusSetOf();
+      const i = set.findIndex(it => it.k === t && it.v === val);
+      if(i >= 0){
+        if(set.length > 1) set.splice(i, 1);
+      } else {
+        set.push({ k: t, v: val });
+      }
+      setFocusSet(set); SFX.pop(); renderFocusControls();
+    });
     box.appendChild(b);
   };
   if(t === "letter") "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(L => mkBtn(L, L));
