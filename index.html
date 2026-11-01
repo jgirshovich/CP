@@ -445,6 +445,7 @@
   <div class="topbar">
     <button class="bigbtn gray small" id="teachHomeBtn">⬅ Class Pets</button>
     <h1>🍎 Teacher Dashboard</h1>
+    <p class="note" style="margin-top:-10px;">App version 11 — if this line is missing, the page on screen is older than the deploy.</p>
     <div class="spacer"></div>
     <span id="syncStatus"></span>
   </div>
@@ -472,7 +473,7 @@
         <button class="bigbtn green small" id="setAddBtn">＋ Add to set</button>
         <span id="setChips" style="font-size:14px; color:#8a6d4f;"></span>
       </div>
-      <p class="note" id="setNote">Rooms cycle through this set in order — a correct Find It or Feed moves to the next item. Click an item above to practice just that one, or tap a chip to start the set there.</p>
+      <p class="note" id="setNote">Rooms cycle through this set in order — a correct Find It or Feed moves to the next item. Click an item above to practice just that one, or tap a chip to start the set there. A set can mix kinds — add letters, numbers, shapes, colors, or words to the same set. The Kind above picks which set the rooms use.</p>
       <div class="rowflex" id="wordAddRow" style="display:none; margin-top:4px;">
         <input class="textin" id="newWordInput" placeholder="Add your own sight word" style="width:220px;">
         <button class="bigbtn green small" id="addWordBtn">＋ Add Word</button>
@@ -872,7 +873,7 @@ let S = null;
    the app still reports "Sent". The script stamps its version on every
    state load; if it is older than this page, warn the teacher here instead
    of letting email fail silently. */
-const PAGE_SCRIPT_VERSION = 10;
+const PAGE_SCRIPT_VERSION = 11;
 function checkScriptVersion(v){
   const note = $("#scriptVersionNote"); if(!note) return;
   if(v === undefined || v === null || v < PAGE_SCRIPT_VERSION){
@@ -1088,28 +1089,51 @@ function finishCreate(){
    (per student), so rooms never write settings — the Phase 2 rule that
    keeps dashboard and room saves from clobbering each other stays intact.
    A missing/empty set means today's single-item behavior. */
-/* Phase 10 — one set PER KIND. Before this, every kind shared the single
-   S.settings.focusSet, and the Kind dropdown reset it to one default item
-   and saved immediately — switching kinds destroyed the set the teacher
-   had built. Now each kind keeps its own set; switching kinds restores
-   the set built for that kind, and a kind with no set yet starts fresh
-   (nothing to destroy). The old shared focusSet still reads as a
-   fallback, and is migrated into the current kind's slot on load. */
+/* Phase 11 — set items carry their kind: { k, v }. A set can now mix
+   kinds (letters AND numbers in the same set), and each kind still keeps
+   its own set, so switching Kinds never destroys a built set — the Kind
+   dropdown picks WHICH set the rooms use, and a set may hold any kinds.
+   Old sheets store plain values; those migrate here, taking the kind of
+   the set they lived in. The legacy focusSet field stays a plain value
+   list for old readers and the sheet. */
+function normFocusItem(it, kind){
+  if(it && typeof it === "object") return { k: it.k || kind || S.settings.focusType, v: it.v };
+  return { k: kind || S.settings.focusType, v: it };
+}
+function normFocusSet(set, kind){
+  const k = kind || S.settings.focusType;
+  return (Array.isArray(set) ? set : []).map(it => normFocusItem(it, k))
+    .filter(i => i.v !== undefined && i.v !== null && i.v !== "");
+}
 function migrateFocusSets(){
   if(!S.settings) return;
   if(!S.settings.focusSets || typeof S.settings.focusSets !== "object") S.settings.focusSets = {};
+  Object.keys(S.settings.focusSets).forEach(k => {
+    S.settings.focusSets[k] = normFocusSet(S.settings.focusSets[k], k);
+    if(!S.settings.focusSets[k].length) delete S.settings.focusSets[k];
+  });
   if(!Object.keys(S.settings.focusSets).length && Array.isArray(S.settings.focusSet) && S.settings.focusSet.length){
-    S.settings.focusSets[S.settings.focusType] = S.settings.focusSet.slice();
+    S.settings.focusSets[S.settings.focusType] = S.settings.focusSet.map(v => ({ k: S.settings.focusType, v }));
   }
 }
 function focusSetOf(){
   const sets = S.settings.focusSets;
   if(sets){
     const s = sets[S.settings.focusType];
-    if(Array.isArray(s) && s.length) return s;
+    if(Array.isArray(s) && s.length) return normFocusSet(s, S.settings.focusType);
   }
   const s = S.settings.focusSet;
-  return (Array.isArray(s) && s.length) ? s : [S.settings.focus];
+  if(Array.isArray(s) && s.length) return normFocusSet(s, S.settings.focusType);
+  return [{ k: S.settings.focusType, v: S.settings.focus }];
+}
+function currentFocusItem(){
+  const set = focusSetOf();
+  return set[focusIdxGet() % set.length];
+}
+function currentFocusKind(){ return currentFocusItem().k; }
+function focusKey(){
+  const it = currentFocusItem();
+  return it.k + ":" + it.v;
 }
 function focusIdxKey(){ return "cp_focusIdx_" + (cur ? cur.id : "class"); }
 function focusIdxGet(){
@@ -1119,8 +1143,7 @@ function focusIdxSet(i){
   try{ localStorage.setItem(focusIdxKey(), String(i)); }catch(e){}
 }
 function currentFocus(){
-  const set = focusSetOf();
-  return set[focusIdxGet() % set.length];
+  return currentFocusItem().v;
 }
 /* Advance to the next item in the set after a learning success. Returns
    the new item's value, or null when the set has a single item. */
@@ -1130,10 +1153,10 @@ function advanceFocus(){
   const next = (focusIdxGet() + 1) % set.length;
   focusIdxSet(next);
   renderFocusInRoom();
-  return set[next];
+  return set[next].v;
 }
 function focusDisplay(){
-  const t = S.settings.focusType, v = currentFocus();
+  const it = currentFocusItem(), t = it.k, v = it.v;
   if(t === "letter") return { text: v, big: v, phrase: `${v} is for ${LETTER_WORDS[v] || ""}!`, cap: `${v} is for ${LETTER_WORDS[v] || ""}` };
   if(t === "number") return { text: v, big: v, phrase: `Number ${v}!`, cap: `Number ${v}` };
   if(t === "shape")  return { text: v, big: null, phrase: `A ${v}!`, cap: `Shape: ${v}` };
@@ -1147,7 +1170,7 @@ function glyphHTML(value, type){
   return esc(value);
 }
 function distractors(){
-  const t = S.settings.focusType, v = currentFocus();
+  const it = currentFocusItem(), t = it.k, v = it.v;
   const pick = arr => arr.filter(x => x !== v).sort(()=>Math.random()-.5).slice(0,2);
   if(t === "letter") return pick("ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""));
   if(t === "number"){ const n = parseInt(v,10); return pick(["1","2","3","4","5","6","7","8","9","10"]).slice(0,2); }
@@ -1242,7 +1265,7 @@ function startQuiz(){
   SFX.pop();
 }
 function renderFocusInRoom(){
-  const f = focusDisplay(), t = S.settings.focusType;
+  const f = focusDisplay(), t = currentFocusKind();
   const g = $("#posterGlyph");
   g.innerHTML = glyphHTML(currentFocus(), t);
   if(t === "shape" || t === "color") g.querySelector("svg,span").style.width = "60px";
@@ -1387,7 +1410,8 @@ function idleBehavior(){
     showBubble(`I'm hungry! 🍎<br>Can I have a treat?`, 5500); SFX.grumble();
     P.tx = 82; P.ty = 90;
   } else if(r < 0.45){
-    showBubble(`<span class="huge">${f.text && S.settings.focusType !== "shape" && S.settings.focusType !== "color" ? esc(f.big || f.text) : ""}</span>${(S.settings.focusType==="shape"||S.settings.focusType==="color") ? glyphHTML(S.settings.focus, S.settings.focusType) : ""}<br>${esc(f.phrase)}`, 3000);
+    const ik = currentFocusKind();
+    showBubble(`<span class="huge">${f.text && ik !== "shape" && ik !== "color" ? esc(f.big || f.text) : ""}</span>${(ik==="shape"||ik==="color") ? glyphHTML(currentFocus(), ik) : ""}<br>${esc(f.phrase)}`, 3000);
   } else if(r < 0.6){
     bouncePet(); SFX.chirp();
   } else if(r < 0.75 && $("#scene").className === "outdoor"){
@@ -1502,7 +1526,7 @@ function startFeed(){
   if(!cur || P.mode === "nap") return;
   lastInteract = Date.now();
   hideBall(); closeGameTray();
-  const t = S.settings.focusType;
+  const t = currentFocusKind();
   const f = focusDisplay();
   const box = $("#treats"); box.innerHTML = "";
   let options;
@@ -2019,10 +2043,10 @@ async function pollSettings(){
   try{
     const data = await gasGet();
     if(data && data.settings){
-      const oldFocus = S.settings.focusType + S.settings.focus;
-      const oldSet = JSON.stringify(S.settings.focusSet || []);
+      const oldFocus = focusKey();
+      const oldSet = JSON.stringify(focusSetOf().map(i => i.k + ":" + i.v));
       S.settings = data.settings;
-      if(oldFocus !== S.settings.focusType + S.settings.focus || oldSet !== JSON.stringify(S.settings.focusSet || [])) renderFocusInRoom();
+      if(oldFocus !== focusKey() || oldSet !== JSON.stringify(focusSetOf().map(i => i.k + ":" + i.v))) renderFocusInRoom();
       updateMeters();
       checkVisit(false);
     }
@@ -2332,8 +2356,9 @@ function renderFocusControls(){
   const mkBtn = (label, val, html) => {
     const b = document.createElement("button");
     if(html) b.innerHTML = html; else b.textContent = label;
-    if(S.settings.focus === val) b.className = "sel";
-    b.addEventListener("click", ()=>{ setFocusSet([val]); SFX.pop(); renderFocusControls(); });
+    const ci = currentFocusItem();
+    if(ci.v === val && ci.k === t) b.className = "sel";
+    b.addEventListener("click", ()=>{ setFocusSet([{ k: t, v: val }]); SFX.pop(); renderFocusControls(); });
     box.appendChild(b);
   };
   if(t === "letter") "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(L => mkBtn(L, L));
@@ -2351,12 +2376,12 @@ function renderCustomWordsList(){
     `<span style="background:#fff3e2;border:2px solid #ffd9ae;border-radius:999px;padding:2px 6px 2px 10px;margin-right:5px;font-weight:bold;">${esc(w)} <button data-wdel="${i}" title="Remove" style="background:none;color:#b03a2e;font-weight:bold;font-size:14px;">✕</button></span>`).join("");
   el.querySelectorAll("[data-wdel]").forEach(b => b.addEventListener("click", ()=>{
     const removed = S.settings.customWords.splice(Number(b.dataset.wdel), 1)[0];
-    const oldFocus = S.settings.focus;
-    const set2 = focusSetOf().filter(x => x !== removed);
-    setFocusSet(set2.length ? set2 : [oldFocus]);
+    const oldItem = currentFocusItem();
+    const set2 = focusSetOf().filter(i => !(i.k === "word" && i.v === removed));
+    setFocusSet(set2.length ? set2 : [{ k: "word", v: "the" }]);
     // setFocusSet moves focus to the set's first item; keep the old focus
     // when it survived (same rule the chips editor already used).
-    if(oldFocus !== removed && set2.includes(oldFocus)){ S.settings.focus = oldFocus; saveState(); }
+    if(set2.some(i => i.k === oldItem.k && i.v === oldItem.v)){ S.settings.focus = oldItem.v; saveState(); }
     renderFocusControls();
   }));
 }
@@ -2364,12 +2389,12 @@ function renderCustomWordsList(){
    always the set's first item (where a new student's room starts, and the
    dashboard highlight). Every dashboard mutation goes through here. */
 function setFocusSet(set){
-  const clean = (Array.isArray(set) ? set : []).filter(v => v !== undefined && v !== null && v !== "");
+  const clean = normFocusSet(set, S.settings.focusType);
   if(!S.settings.focusSets || typeof S.settings.focusSets !== "object") S.settings.focusSets = {};
-  S.settings.focusSets[S.settings.focusType] = clean.length ? clean : [S.settings.focus];
-  S.settings.focus = S.settings.focusSets[S.settings.focusType][0];
-  // Keep the legacy field in sync with the current kind's set.
-  S.settings.focusSet = S.settings.focusSets[S.settings.focusType];
+  S.settings.focusSets[S.settings.focusType] = clean.length ? clean : [{ k: S.settings.focusType, v: S.settings.focus }];
+  S.settings.focus = S.settings.focusSets[S.settings.focusType][0].v;
+  // Legacy field stays a plain value list, for old readers and the sheet.
+  S.settings.focusSet = S.settings.focusSets[S.settings.focusType].map(i => i.v);
   saveState();
 }
 function setKindItems(){
@@ -2388,14 +2413,28 @@ function renderSetEditor(){
   const note = $("#setNote"); if(note) note.style.display = show ? "" : "none";
   if(!show) return;
   const sel = $("#setAddSelect"); const prevSel = sel.value; sel.innerHTML = "";
-  setKindItems().forEach(v => {
-    const o = document.createElement("option"); o.value = v; o.textContent = v; sel.appendChild(o);
+  /* Phase 11 — the add dropdown offers every kind, grouped, so one set
+     can mix letters, numbers, shapes, colors, and words. Values are
+     encoded kind:value (kinds never contain ":"). */
+  [["Letters", "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(v => ({ k: "letter", v }))],
+   ["Numbers", ["1","2","3","4","5","6","7","8","9","10"].map(v => ({ k: "number", v }))],
+   ["Shapes", SHAPES.map(v => ({ k: "shape", v }))],
+   ["Colors", Object.keys(COLOR_WORDS).map(v => ({ k: "color", v }))],
+   ["Sight words", SIGHT_WORDS.concat(S.settings.customWords || []).map(v => ({ k: "word", v }))],
+  ].forEach(([label, items]) => {
+    const og = document.createElement("optgroup"); og.label = label;
+    items.forEach(it => { const o = document.createElement("option"); o.value = it.k + ":" + it.v; o.textContent = it.v; og.appendChild(o); });
+    sel.appendChild(og);
   });
   if([...sel.options].some(o => o.value === prevSel)) sel.value = prevSel;
   const chips = $("#setChips");
   const set = focusSetOf();
-  chips.innerHTML = set.map((v,i) =>
-    `<span style="background:#e8f5e9;border:2px solid #a5d6a7;border-radius:999px;padding:2px 6px 2px 10px;margin-right:5px;font-weight:bold;cursor:pointer;" title="Tap to start here" data-setfirst="${i}">${esc(v)} <button data-setdel="${i}" title="Remove" style="background:none;color:#b03a2e;font-weight:bold;font-size:14px;">✕</button></span>`).join("");
+  chips.innerHTML = set.map((it,i) => {
+    const label = it.k === "shape" ? shapeSVG(it.v, "#e07a3f") + " " + esc(it.v)
+      : it.k === "color" ? `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${COLOR_WORDS[it.v]||"#ccc"};vertical-align:-4px;"></span> ${esc(it.v)}`
+      : esc(it.v);
+    return `<span style="background:#e8f5e9;border:2px solid #a5d6a7;border-radius:999px;padding:2px 6px 2px 10px;margin-right:5px;font-weight:bold;cursor:pointer;" title="Tap to start here" data-setfirst="${i}">${label} <button data-setdel="${i}" title="Remove" style="background:none;color:#b03a2e;font-weight:bold;font-size:14px;">✕</button></span>`;
+  }).join("");
   chips.querySelectorAll("[data-setdel]").forEach(b => b.addEventListener("click", e => {
     e.stopPropagation();
     const set2 = focusSetOf().filter((_, i) => i !== Number(b.dataset.setdel));
@@ -2619,8 +2658,13 @@ function wire(){
     const y = new Date(now); y.setDate(now.getDate() - 1);
     const tm = new Date(now); tm.setDate(now.getDate() + 1);
     showBubble(`📅 Today is ${DAY_NAMES[now.getDay()]}, ${MON_NAMES[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}!<br>Yesterday was ${DAY_NAMES[y.getDay()]}. Tomorrow is ${DAY_NAMES[tm.getDay()]}.`, 5500); });
-  $("#setAddBtn").addEventListener("click", ()=>{ const v = $("#setAddSelect").value; if(!v) return;
-    const set = focusSetOf(); if(!set.includes(v)) set.push(v); setFocusSet(set); renderFocusControls(); SFX.pop(); });
+  $("#setAddBtn").addEventListener("click", ()=>{
+    const raw = $("#setAddSelect").value; if(!raw) return;
+    const ci = raw.indexOf(":");
+    const item = { k: raw.slice(0, ci), v: raw.slice(ci + 1) };
+    const set = focusSetOf();
+    if(!set.some(i => i.k === item.k && i.v === item.v)) set.push(item);
+    setFocusSet(set); renderFocusControls(); SFX.pop(); });
   $("#shopClose").addEventListener("click", ()=> $("#shopPanel").classList.remove("open"));
   $("#tricksClose").addEventListener("click", ()=> $("#tricksPanel").classList.remove("open"));
   $("#goalInput").addEventListener("change", e => { S.settings.classGoal = Math.max(1, parseInt(e.target.value, 10) || 100); saveState(); renderGoal(); });
@@ -2635,19 +2679,21 @@ function wire(){
     S.settings.focusType = t;
     const sets = S.settings.focusSets || {};
     if(Array.isArray(sets[t]) && sets[t].length){
-      // Returning to a kind restores the set already built for it.
-      S.settings.focus = sets[t][0];
+      // Returning to a kind restores the set already built for it —
+      // including any mixed kinds added to that set.
+      S.settings.focus = normFocusSet(sets[t], t)[0].v;
     } else {
       S.settings.focus = t === "letter" ? "B" : t === "number" ? "5" : t === "shape" ? "star" :
                            t === "color" ? "red" : t === "word" ? "the" : "★";
       if(!S.settings.focusSets) S.settings.focusSets = {};
-      S.settings.focusSets[t] = [S.settings.focus];
+      S.settings.focusSets[t] = [{ k: t, v: S.settings.focus }];
     }
-    S.settings.focusSet = focusSetOf();
+    S.settings.focusSet = focusSetOf().map(i => i.v);
     saveState(); renderFocusControls();
   });
   $("#focusCustom").addEventListener("change", e => {
-    S.settings.focus = e.target.value.trim() || "★"; S.settings.focusSet = [S.settings.focus]; saveState();
+    const v = e.target.value.trim() || "★";
+    setFocusSet([{ k: "custom", v }]);
   });
   $("#paradeBtn").addEventListener("click", ()=>{
     if(S.students.filter(s => s.pet).length < 2){ alert("At least two students need pets for a parade. Emma and Liam already have pets in the demo!"); return; }
@@ -2686,6 +2732,7 @@ function wire(){
     }
     S.students = [];
     S.settings.focusType = "letter"; S.settings.focus = "B";
+    S.settings.focusSets = {}; S.settings.focusSet = ["B"];
     S.settings.classGoal = 100; S.settings.classGoalLabel = "Class Party"; S.settings.visit = null;
     saveState(); renderTeacher(); renderHome(); renderGoal();
   });
