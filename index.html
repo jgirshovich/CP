@@ -116,7 +116,9 @@
   .yardflower { position:absolute; font-size:34px; display:none; z-index:3; }
   #scene.outdoor .yardflower { display:block; }
   .yardboard { position:absolute; left:32%; bottom:36%; width:118px; background:#fffdf4; border:6px solid #8a5a2b; border-radius:8px; box-shadow:0 4px 9px rgba(0,0,0,.15); display:none; z-index:3; text-align:center; padding:6px 4px; }
-  .yardboard::after { content:""; position:absolute; left:50%; top:100%; width:10px; height:18px; background:#8a5a2b; transform:translateX(-50%); }
+  /* Phase 10 — the yard board's little post below it is gone: testers read
+     it as a down-arrow button, tapped it, and nothing happened (it was
+     never a control, just decoration). The board itself stays. */
   #scene.outdoor .yardboard { display:block; }
   .yardglyph { font-size:52px; font-weight:bold; color:#d3542e; line-height:1; display:flex; align-items:center; justify-content:center; }
   .yardglyph svg { width:52px; height:52px; }
@@ -642,6 +644,13 @@ const SHOP_ITEMS = [
   { id:"crown", name:"Crown", emoji:"👑", price:8, where:"worn" },
   { id:"flower", name:"Flower", emoji:"🌸", price:3, where:"worn" },
   { id:"bow", name:"Bow", emoji:"🎀", price:3, where:"worn" },
+  /* Phase 10 — wall stickers: bought with stars, stuck on the inside wall
+     in a row below the poster. One of each design per pet (shop items are
+     unique); Put out / Put away works like other decor. */
+  { id:"starsticker", name:"Star Sticker", emoji:"⭐", price:3, where:"wall" },
+  { id:"heartsticker", name:"Heart Sticker", emoji:"❤️", price:3, where:"wall" },
+  { id:"daisysticker", name:"Daisy Sticker", emoji:"🌼", price:4, where:"wall" },
+  { id:"rainbowsticker", name:"Rainbow Sticker", emoji:"🌈", price:5, where:"wall" },
 ];
 const TRICKS = [
   { id:"roll", name:"Roll Over", emoji:"🔄", stars:10 },
@@ -846,7 +855,7 @@ function demoState(){
   const mk = (name, pet) => ({ id: uid(), name, pet: pet || null,
     hunger: 70, happiness: 75, stars: 0, earned: 0, items: [] });
   return {
-    settings: { focusType:"letter", focus:"B", visit:null, customWords:[], appBase:"", classGoal:100, classGoalLabel:"Class Party" },
+    settings: { focusType:"letter", focus:"B", visit:null, customWords:[], focusSets:{}, appBase:"", classGoal:100, classGoalLabel:"Class Party" },
     students: [
       mk("Emma",  { type:"cat",   color:"#f4a259", name:"Whiskers" }),
       mk("Liam",  { type:"dog",   color:"#b08968", name:"Biscuit" }),
@@ -863,7 +872,7 @@ let S = null;
    the app still reports "Sent". The script stamps its version on every
    state load; if it is older than this page, warn the teacher here instead
    of letting email fail silently. */
-const PAGE_SCRIPT_VERSION = 8;
+const PAGE_SCRIPT_VERSION = 10;
 function checkScriptVersion(v){
   const note = $("#scriptVersionNote"); if(!note) return;
   if(v === undefined || v === null || v < PAGE_SCRIPT_VERSION){
@@ -896,6 +905,7 @@ async function loadState(){
   }
   if(!S.settings) S.settings = demoState().settings;
   if(!Array.isArray(S.settings.customWords)) S.settings.customWords = [];
+  migrateFocusSets();
   if(typeof S.settings.appBase !== "string") S.settings.appBase = "";
   if(typeof S.settings.classGoal !== "number") S.settings.classGoal = 100;
   if(typeof S.settings.classGoalLabel !== "string") S.settings.classGoalLabel = "Class Party";
@@ -1078,7 +1088,26 @@ function finishCreate(){
    (per student), so rooms never write settings — the Phase 2 rule that
    keeps dashboard and room saves from clobbering each other stays intact.
    A missing/empty set means today's single-item behavior. */
+/* Phase 10 — one set PER KIND. Before this, every kind shared the single
+   S.settings.focusSet, and the Kind dropdown reset it to one default item
+   and saved immediately — switching kinds destroyed the set the teacher
+   had built. Now each kind keeps its own set; switching kinds restores
+   the set built for that kind, and a kind with no set yet starts fresh
+   (nothing to destroy). The old shared focusSet still reads as a
+   fallback, and is migrated into the current kind's slot on load. */
+function migrateFocusSets(){
+  if(!S.settings) return;
+  if(!S.settings.focusSets || typeof S.settings.focusSets !== "object") S.settings.focusSets = {};
+  if(!Object.keys(S.settings.focusSets).length && Array.isArray(S.settings.focusSet) && S.settings.focusSet.length){
+    S.settings.focusSets[S.settings.focusType] = S.settings.focusSet.slice();
+  }
+}
 function focusSetOf(){
+  const sets = S.settings.focusSets;
+  if(sets){
+    const s = sets[S.settings.focusType];
+    if(Array.isArray(s) && s.length) return s;
+  }
   const s = S.settings.focusSet;
   return (Array.isArray(s) && s.length) ? s : [S.settings.focus];
 }
@@ -2055,9 +2084,18 @@ function renderSceneItems(){
   const d = $("#decor"); if(!d || !cur) return;
   const indoor = $("#scene").className === "indoor";
   let html = "";
+  let wallIdx = 0;
   placedItems(cur).forEach(id => {
     const it = SHOP_ITEMS.find(x => x.id === id); if(!it) return;
     if(it.where === "indoor" && indoor && id === "bed") html += `<span class="decor-item med" data-decor="bed" style="left:10%;bottom:20%;">🛏️</span>`;
+    /* Phase 10 — wall stickers live indoors only, in a row on the wall
+       below the poster/window/clock band (top ~35%) and above the floor
+       line (~55%). Unknown decor taps fall through harmlessly in the
+       scene pointerdown handler, so stickers are decorative. */
+    if(it.where === "wall" && indoor){
+      const left = 10 + wallIdx * 20; wallIdx++;
+      html += `<span class="decor-item" data-decor="${id}" style="left:${left}%;top:40%;font-size:44px;">${it.emoji}</span>`;
+    }
     if(it.where === "outdoor" && !indoor){
       if(id === "doghouse") html += `<span class="decor-item big" data-decor="doghouse" style="right:6%;bottom:18%;">🏠</span>`;
       if(id === "slide") html += `<span class="decor-item big" data-decor="slide" style="left:6%;bottom:22%;">🛝</span>`;
@@ -2313,12 +2351,13 @@ function renderCustomWordsList(){
     `<span style="background:#fff3e2;border:2px solid #ffd9ae;border-radius:999px;padding:2px 6px 2px 10px;margin-right:5px;font-weight:bold;">${esc(w)} <button data-wdel="${i}" title="Remove" style="background:none;color:#b03a2e;font-weight:bold;font-size:14px;">✕</button></span>`).join("");
   el.querySelectorAll("[data-wdel]").forEach(b => b.addEventListener("click", ()=>{
     const removed = S.settings.customWords.splice(Number(b.dataset.wdel), 1)[0];
-    if(Array.isArray(S.settings.focusSet)){
-      S.settings.focusSet = S.settings.focusSet.filter(x => x !== removed);
-      if(!S.settings.focusSet.length) S.settings.focusSet = [S.settings.focus];
-      if(S.settings.focus === removed) S.settings.focus = S.settings.focusSet[0];
-    } else if(S.settings.focus === removed) S.settings.focus = "the";
-    saveState(); renderFocusControls();
+    const oldFocus = S.settings.focus;
+    const set2 = focusSetOf().filter(x => x !== removed);
+    setFocusSet(set2.length ? set2 : [oldFocus]);
+    // setFocusSet moves focus to the set's first item; keep the old focus
+    // when it survived (same rule the chips editor already used).
+    if(oldFocus !== removed && set2.includes(oldFocus)){ S.settings.focus = oldFocus; saveState(); }
+    renderFocusControls();
   }));
 }
 /* Phase 3 — the practice set is the source of truth; settings.focus is
@@ -2326,8 +2365,11 @@ function renderCustomWordsList(){
    dashboard highlight). Every dashboard mutation goes through here. */
 function setFocusSet(set){
   const clean = (Array.isArray(set) ? set : []).filter(v => v !== undefined && v !== null && v !== "");
-  S.settings.focusSet = clean.length ? clean : [S.settings.focus];
-  S.settings.focus = S.settings.focusSet[0];
+  if(!S.settings.focusSets || typeof S.settings.focusSets !== "object") S.settings.focusSets = {};
+  S.settings.focusSets[S.settings.focusType] = clean.length ? clean : [S.settings.focus];
+  S.settings.focus = S.settings.focusSets[S.settings.focusType][0];
+  // Keep the legacy field in sync with the current kind's set.
+  S.settings.focusSet = S.settings.focusSets[S.settings.focusType];
   saveState();
 }
 function setKindItems(){
@@ -2591,9 +2633,17 @@ function wire(){
   $("#focusType").addEventListener("change", e => {
     const t = e.target.value;
     S.settings.focusType = t;
-    S.settings.focus = t === "letter" ? "B" : t === "number" ? "5" : t === "shape" ? "star" :
-                         t === "color" ? "red" : t === "word" ? "the" : "★";
-    S.settings.focusSet = [S.settings.focus];
+    const sets = S.settings.focusSets || {};
+    if(Array.isArray(sets[t]) && sets[t].length){
+      // Returning to a kind restores the set already built for it.
+      S.settings.focus = sets[t][0];
+    } else {
+      S.settings.focus = t === "letter" ? "B" : t === "number" ? "5" : t === "shape" ? "star" :
+                           t === "color" ? "red" : t === "word" ? "the" : "★";
+      if(!S.settings.focusSets) S.settings.focusSets = {};
+      S.settings.focusSets[t] = [S.settings.focus];
+    }
+    S.settings.focusSet = focusSetOf();
     saveState(); renderFocusControls();
   });
   $("#focusCustom").addEventListener("change", e => {
