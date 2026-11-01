@@ -445,7 +445,7 @@
   <div class="topbar">
     <button class="bigbtn gray small" id="teachHomeBtn">⬅ Class Pets</button>
     <h1>🍎 Teacher Dashboard</h1>
-    <p class="note" style="margin-top:-10px;">App version 12 — if this line is missing, the page on screen is older than the deploy.</p>
+    <p class="note" style="margin-top:-10px;">App version 13 — if this line is missing, the page on screen is older than the deploy.</p>
     <div class="spacer"></div>
     <span id="syncStatus"></span>
   </div>
@@ -455,7 +455,7 @@
     <div class="panel">
       <h3>📚 What are we learning?</h3>
       <div class="rowflex">
-        <span style="font-weight:bold;">Kind:</span>
+        <span style="font-weight:bold;">Show:</span>
         <select id="focusType">
           <option value="letter">Letter</option>
           <option value="number">Number</option>
@@ -473,7 +473,7 @@
         <button class="bigbtn green small" id="setAddBtn">＋ Add to set</button>
         <span id="setChips" style="font-size:14px; color:#8a6d4f;"></span>
       </div>
-      <p class="note" id="setNote">Click the items above to build the set — click an item again to take it out. Rooms cycle through this set in order — a correct Find It or Feed moves to the next item. Tap a chip to start the set at that item. A set can mix kinds — add letters, numbers, shapes, colors, or words to the same set. The Kind above picks which set the rooms use.</p>
+      <p class="note" id="setNote">There's one practice set for the class. Click the items above to build it — click an item again to take it out. The Show dropdown only changes which items are offered here to tap; it never changes the set. Rooms cycle through this set in order — a correct Find It or Feed moves to the next item. Tap a chip to start the set at that item. A set can mix kinds — add letters, numbers, shapes, colors, or words to the same set.</p>
       <div class="rowflex" id="wordAddRow" style="display:none; margin-top:4px;">
         <input class="textin" id="newWordInput" placeholder="Add your own sight word" style="width:220px;">
         <button class="bigbtn green small" id="addWordBtn">＋ Add Word</button>
@@ -873,7 +873,7 @@ let S = null;
    the app still reports "Sent". The script stamps its version on every
    state load; if it is older than this page, warn the teacher here instead
    of letting email fail silently. */
-const PAGE_SCRIPT_VERSION = 12;
+const PAGE_SCRIPT_VERSION = 13;
 function checkScriptVersion(v){
   const note = $("#scriptVersionNote"); if(!note) return;
   if(v === undefined || v === null || v < PAGE_SCRIPT_VERSION){
@@ -1105,23 +1105,32 @@ function normFocusSet(set, kind){
   return (Array.isArray(set) ? set : []).map(it => normFocusItem(it, k))
     .filter(i => i.v !== undefined && i.v !== null && i.v !== "");
 }
+/* Phase 13 — ONE practice set for the class. The Phase 11/12 model
+   (one set per Kind) was wrong for how the teacher actually works:
+   switching Kinds swapped sets, so a letters set "disappeared" behind
+   the numbers set. Now Kind only filters which items the dashboard
+   offers for tapping; it never changes the set. This migration folds
+   every old per-kind set into the single set (canonical kind order,
+   duplicates dropped), so nothing already built is lost. It is
+   idempotent: re-running it on the merged set returns the same set. */
 function migrateFocusSets(){
   if(!S.settings) return;
-  if(!S.settings.focusSets || typeof S.settings.focusSets !== "object") S.settings.focusSets = {};
-  Object.keys(S.settings.focusSets).forEach(k => {
-    S.settings.focusSets[k] = normFocusSet(S.settings.focusSets[k], k);
-    if(!S.settings.focusSets[k].length) delete S.settings.focusSets[k];
-  });
-  if(!Object.keys(S.settings.focusSets).length && Array.isArray(S.settings.focusSet) && S.settings.focusSet.length){
-    S.settings.focusSets[S.settings.focusType] = S.settings.focusSet.map(v => ({ k: S.settings.focusType, v }));
-  }
+  const sets = (S.settings.focusSets && typeof S.settings.focusSets === "object") ? S.settings.focusSets : {};
+  const order = ["letter", "number", "shape", "color", "word", "custom"];
+  const merged = [];
+  const seen = new Set();
+  const add = (it) => {
+    const key = it.k + ":" + it.v;
+    if(!seen.has(key)){ seen.add(key); merged.push(it); }
+  };
+  order.forEach(k => normFocusSet(sets[k], k).forEach(add));
+  // Anything already in the single set that the old map never held
+  // (e.g. plain values from before per-kind sets) joins at the end.
+  normFocusSet(S.settings.focusSet, S.settings.focusType).forEach(add);
+  if(merged.length) S.settings.focusSet = merged;
+  S.settings.focusSets = {};
 }
 function focusSetOf(){
-  const sets = S.settings.focusSets;
-  if(sets){
-    const s = sets[S.settings.focusType];
-    if(Array.isArray(s) && s.length) return normFocusSet(s, S.settings.focusType);
-  }
   const s = S.settings.focusSet;
   if(Array.isArray(s) && s.length) return normFocusSet(s, S.settings.focusType);
   return [{ k: S.settings.focusType, v: S.settings.focus }];
@@ -2348,7 +2357,8 @@ function renderFocusControls(){
   const t = S.settings.focusType;
   $("#focusType").value = t;
   $("#focusCustom").style.display = t === "custom" ? "" : "none";
-  if(t === "custom") $("#focusCustom").value = S.settings.focus;
+  /* Phase 13 — the custom box is an ADD box now; re-rendering must not
+     overwrite what the teacher typed (or show the set's first item). */
   $("#wordAddRow").style.display = t === "word" ? "" : "none";
   renderCustomWordsList();
   renderSetEditor();
@@ -2402,13 +2412,13 @@ function renderCustomWordsList(){
 /* Phase 3 — the practice set is the source of truth; settings.focus is
    always the set's first item (where a new student's room starts, and the
    dashboard highlight). Every dashboard mutation goes through here. */
+/* Phase 13 — the single set lives in focusSet. The old per-kind map
+   (focusSets) is left empty so the sheet holds no competing copy. */
 function setFocusSet(set){
   const clean = normFocusSet(set, S.settings.focusType);
-  if(!S.settings.focusSets || typeof S.settings.focusSets !== "object") S.settings.focusSets = {};
-  S.settings.focusSets[S.settings.focusType] = clean.length ? clean : [{ k: S.settings.focusType, v: S.settings.focus }];
-  S.settings.focus = S.settings.focusSets[S.settings.focusType][0].v;
-  // Legacy field stays a plain value list, for old readers and the sheet.
-  S.settings.focusSet = S.settings.focusSets[S.settings.focusType].map(i => i.v);
+  S.settings.focusSet = clean.length ? clean : [{ k: S.settings.focusType, v: S.settings.focus }];
+  S.settings.focus = S.settings.focusSet[0].v;
+  S.settings.focusSets = {};
   saveState();
 }
 function setKindItems(){
@@ -2689,25 +2699,21 @@ function wire(){
   $("#nameBack").addEventListener("click", ()=> showStep(2));
   $("#createDone").addEventListener("click", finishCreate);
   $("#focusType").addEventListener("change", e => {
-    const t = e.target.value;
-    S.settings.focusType = t;
-    const sets = S.settings.focusSets || {};
-    if(Array.isArray(sets[t]) && sets[t].length){
-      // Returning to a kind restores the set already built for it —
-      // including any mixed kinds added to that set.
-      S.settings.focus = normFocusSet(sets[t], t)[0].v;
-    } else {
-      S.settings.focus = t === "letter" ? "B" : t === "number" ? "5" : t === "shape" ? "star" :
-                           t === "color" ? "red" : t === "word" ? "the" : "★";
-      if(!S.settings.focusSets) S.settings.focusSets = {};
-      S.settings.focusSets[t] = [{ k: t, v: S.settings.focus }];
-    }
-    S.settings.focusSet = focusSetOf().map(i => i.v);
+    // Phase 13 — Kind only changes which items the dashboard offers
+    // for tapping. It NEVER touches the set: there is one practice
+    // set for the class, and switching kinds cannot erase it.
+    S.settings.focusType = e.target.value;
     saveState(); renderFocusControls();
   });
   $("#focusCustom").addEventListener("change", e => {
-    const v = e.target.value.trim() || "★";
-    setFocusSet([{ k: "custom", v }]);
+    // Phase 13 — a typed custom item JOINS the single set. It used to
+    // replace the whole set, which would wipe everything built.
+    const v = e.target.value.trim();
+    if(!v) return;
+    const set = focusSetOf();
+    if(!set.some(i => i.k === "custom" && i.v === v)) set.push({ k: "custom", v });
+    setFocusSet(set); renderFocusControls();
+    e.target.value = "";
   });
   $("#paradeBtn").addEventListener("click", ()=>{
     if(S.students.filter(s => s.pet).length < 2){ alert("At least two students need pets for a parade. Emma and Liam already have pets in the demo!"); return; }
